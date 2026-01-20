@@ -1,0 +1,78 @@
+Yes. That pipeline is viable, and it is a good way to separate "extract, reason, rebuild."
+
+A practical version looks like this:
+
+1) Extract each PPTX to a structured CSV plus an assets folder
+
+CSV row per slide (or per content block if you want finer control).
+
+Recommended columns
+* source_pptx (basename)
+* source_slide_index (1-based)
+* slide_uid (stable ID you generate, see below)
+* title_text
+* body_text (plain text, bullets flattened with \n and indentation markers)
+* notes_text (optional, very useful for speaker notes)
+* layout_hint (optional: "title_and_content", "section_header", "two_column", etc.)
+* image_refs (JSON string list of asset filenames, ordered)
+* image_hashes (JSON string list of perceptual hashes or SHA256 of bytes)
+* text_hash (hash of normalized text for dedup)
+* slide_fingerprint (hash of normalized text + image hashes)
+
+Assets
+* Export each embedded image to assets/<slide_uid>_img01.png etc.
+
+Slide UID
+* Do not rely on PowerPoint internal IDs for cross-file stability.
+* Use your own slide_uid = sha256(source_pptx + slide_index + normalized_title + normalized_text + image_hashes) or a UUID plus stored fingerprint.
+
+2) LLM merges CSVs into a "canonical deck spec"
+
+Have the LLM output a merged CSV (or better, JSON) that represents the target deck in order.
+
+LLM instructions that reduce mess
+* Preserve slide_uid from sources when reusing slides.
+* For merged slides, create a new slide_uid and include provenance (which slide_uids contributed).
+* Keep layout_hint explicit.
+* For each slide, keep image_refs as references to actual exported assets, or declare that images should be pulled from specific source slide_uids.
+
+If you want less brittleness than CSV, use JSON for the merged deck spec, then generate CSV for audit.
+
+3) Rebuild PPTX from the merged spec
+
+This is where Python shines.
+
+Rebuild tasks
+* Create deck, apply theme rules, then create slides in order.
+* Pick slide layouts by layout_hint.
+* Place title and body text into known bounding boxes.
+* Insert images using image_refs, with consistent sizing and alignment rules.
+* Add speaker notes from notes_text.
+
+Theme enforcement (what is realistic)
+* Fonts, sizes, colors, spacing, margins, background shapes.
+* Consistent title box position and style.
+* Bullet indentation and line spacing.
+* Consistent figure captions and panel labels.
+
+Theme enforcement (hard)
+* True PowerPoint master theme editing using python-pptx is limited.
+* You can still "enforce a theme" by explicitly setting formatting on every shape you create, and by starting from a template PPTX that already has the right masters.
+
+Best practice for theme
+* Use a template PPTX as the base.
+* Only add slides using the template's layouts.
+* Explicitly set fonts and sizes anyway, because imported or rebuilt content can drift.
+
+Pitfalls to plan for
+* Text extraction is lossy: you will lose some styling unless you extract runs and rebuild runs.
+* Images that are not "pictures" (charts, SmartArt, embedded objects) may not export cleanly as images.
+* Absolute positioning matters: if you want consistent layouts, you need clear layout rules and standard bounding boxes.
+* Dedup needs two levels: text similarity plus image hashing, otherwise common boilerplate titles will collide.
+
+Minimal "works well" target
+* Title + body + images + notes, with 3 to 6 layout types.
+* Strong dedup and provenance tracking.
+* Template-based rebuild with consistent typography.
+
+If you keep layout types small and explicit, the system is robust and the LLM stays in its lane: it decides ordering, merges wording, and picks layout hints, while Python does deterministic rendering.

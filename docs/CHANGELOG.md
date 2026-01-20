@@ -29,3 +29,4 @@
 - Fixed pytest path setup so repo-root imports resolve from any working directory.
 - Removed the shebang from pytest conftest to satisfy shebang checks.
 - Finalized theme overflow behavior and clarified locator stability rules.
+- Added a text editing plan for scoped, deterministic slide text updates.

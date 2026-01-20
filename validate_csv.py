@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import os
 
@@ -11,7 +13,7 @@ def parse_args() -> argparse.Namespace:
 	Parse command-line arguments.
 	"""
 	parser = argparse.ArgumentParser(
-		description="Validate a merged slide CSV and related assets."
+		description="Validate a merged slide CSV and related sources."
 	)
 	parser.add_argument(
 		"-i",
@@ -21,27 +23,20 @@ def parse_args() -> argparse.Namespace:
 		help="Input merged CSV path",
 	)
 	parser.add_argument(
-		"-a",
-		"--assets-dir",
-		dest="assets_dir",
-		default="",
-		help="Assets directory (default: <input_csv>_assets)",
-	)
-	parser.add_argument(
 		"-c",
-		"--check-assets",
-		dest="check_assets",
-		help="Check image assets exist",
+		"--check-sources",
+		dest="check_sources",
+		help="Check source PPTX or ODP files exist",
 		action="store_true",
 	)
 	parser.add_argument(
 		"-C",
-		"--no-check-assets",
-		dest="check_assets",
-		help="Skip image asset checks",
+		"--no-check-sources",
+		dest="check_sources",
+		help="Skip source file checks",
 		action="store_false",
 	)
-	parser.set_defaults(check_assets=True)
+	parser.set_defaults(check_sources=True)
 	parser.add_argument(
 		"-s",
 		"--strict",
@@ -62,21 +57,24 @@ def parse_args() -> argparse.Namespace:
 
 
 #============================================
-def resolve_assets_dir(input_csv: str, assets_dir: str) -> str:
+def resolve_source_path(source_pptx: str, csv_dir: str) -> str:
 	"""
-	Resolve the assets directory.
+	Resolve a source path using the CSV directory as fallback.
 
 	Args:
-		input_csv: Input CSV path.
-		assets_dir: Assets directory or empty string.
+		source_pptx: Source PPTX or ODP path.
+		csv_dir: Directory containing the CSV.
 
 	Returns:
-		str: Resolved assets directory.
+		str: Resolved source path.
 	"""
-	if assets_dir:
-		return assets_dir
-	base_name = os.path.splitext(input_csv)[0]
-	return f"{base_name}_assets"
+	if os.path.exists(source_pptx):
+		return source_pptx
+	if csv_dir:
+		candidate = os.path.join(csv_dir, source_pptx)
+		if os.path.exists(candidate):
+			return candidate
+	return source_pptx
 
 
 #============================================
@@ -97,6 +95,25 @@ def normalize_row_value(row: dict[str, str], key: str) -> str:
 	if isinstance(value, str):
 		return value
 	return str(value)
+
+
+#============================================
+def sources_match(locator_source: str, row_source: str) -> bool:
+	"""
+	Check whether locator and row sources refer to the same file.
+
+	Args:
+		locator_source: Source from locator.
+		row_source: Source from CSV row.
+
+	Returns:
+		bool: True if sources match.
+	"""
+	if locator_source == row_source:
+		return True
+	if os.path.basename(locator_source) == os.path.basename(row_source):
+		return True
+	return False
 
 
 #============================================
@@ -121,8 +138,8 @@ def is_positive_int(value: str) -> bool:
 #============================================
 def validate_rows(
 	rows: list[dict[str, str]],
-	assets_dir: str,
-	check_assets: bool,
+	csv_dir: str,
+	check_sources: bool,
 	strict: bool,
 ) -> tuple[list[str], list[str]]:
 	"""
@@ -130,8 +147,8 @@ def validate_rows(
 
 	Args:
 		rows: CSV rows.
-		assets_dir: Assets directory path.
-		check_assets: Whether to check asset files exist.
+		csv_dir: Directory containing the CSV.
+		check_sources: Whether to check source files exist.
 		strict: Whether to validate hashes and fingerprints.
 
 	Returns:
@@ -154,37 +171,55 @@ def validate_rows(
 		source_pptx = normalize_row_value(row, "source_pptx")
 		if not source_pptx:
 			errors.append(f"Row {index}: missing source_pptx.")
+		else:
+			extension = os.path.splitext(source_pptx)[1].lower()
+			if extension not in (".pptx", ".odp"):
+				warnings.append(f"Row {index}: unexpected source_pptx extension.")
+			if check_sources:
+				resolved_path = resolve_source_path(source_pptx, csv_dir)
+				if not os.path.exists(resolved_path):
+					errors.append(f"Row {index}: source_pptx not found.")
 
 		slide_index = normalize_row_value(row, "source_slide_index")
 		if not is_positive_int(slide_index):
 			errors.append(f"Row {index}: invalid source_slide_index {slide_index}.")
+		slide_index_value = slide_index
 
 		layout_hint = normalize_row_value(row, "layout_hint")
 		if not layout_hint:
 			warnings.append(f"Row {index}: missing layout_hint.")
 
-		image_refs = slide_csv.split_list_field(
-			normalize_row_value(row, "image_refs")
+		image_locators = slide_csv.split_list_field(
+			normalize_row_value(row, "image_locators")
 		)
 		image_hashes = slide_csv.split_list_field(
 			normalize_row_value(row, "image_hashes")
 		)
-		if image_refs and not image_hashes:
-			warnings.append(f"Row {index}: image_refs present without image_hashes.")
-		if image_hashes and not image_refs:
-			errors.append(f"Row {index}: image_hashes present without image_refs.")
-		if image_refs and image_hashes:
-			if len(image_refs) != len(image_hashes):
-				errors.append(f"Row {index}: image_refs and image_hashes length mismatch.")
+		if image_locators and image_hashes:
+			if len(image_locators) != len(image_hashes):
+				errors.append(
+					f"Row {index}: image_locators and image_hashes length mismatch."
+				)
+		if image_locators and not image_hashes:
+			warnings.append(f"Row {index}: image_locators present without image_hashes.")
+		if image_hashes and not image_locators:
+			warnings.append(f"Row {index}: image_hashes present without image_locators.")
 
-		if check_assets and image_refs:
-			if not os.path.isdir(assets_dir):
-				errors.append(f"Row {index}: assets_dir not found: {assets_dir}.")
-			else:
-				for ref in image_refs:
-					path = os.path.join(assets_dir, ref)
-					if not os.path.exists(path):
-						errors.append(f"Row {index}: missing asset {ref}.")
+		if image_locators:
+			for locator in image_locators:
+				parsed = slide_csv.parse_image_locator(locator)
+				if not parsed:
+					errors.append(f"Row {index}: invalid image_locator {locator}.")
+					continue
+				locator_source = parsed.get("source", "")
+				if not sources_match(locator_source, source_pptx):
+					errors.append(f"Row {index}: image_locator source mismatch.")
+				locator_slide = parsed.get("slide", "")
+				if locator_slide != slide_index_value:
+					errors.append(f"Row {index}: image_locator slide mismatch.")
+				shape_id = parsed.get("shape_id", "")
+				if not shape_id or not shape_id.isdigit():
+					errors.append(f"Row {index}: image_locator shape_id invalid.")
 
 		if strict:
 			title_text = normalize_row_value(row, "title_text")
@@ -241,12 +276,12 @@ def main() -> None:
 	Main entry point.
 	"""
 	args = parse_args()
-	assets_dir = resolve_assets_dir(args.input_csv, args.assets_dir)
 	rows = slide_csv.read_slide_csv(args.input_csv)
+	csv_dir = os.path.dirname(os.path.abspath(args.input_csv))
 	errors, warnings = validate_rows(
 		rows,
-		assets_dir,
-		args.check_assets,
+		csv_dir,
+		args.check_sources,
 		args.strict,
 	)
 	if warnings:

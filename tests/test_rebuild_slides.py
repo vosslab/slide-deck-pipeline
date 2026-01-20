@@ -54,8 +54,8 @@ class FakeShape:
 		self.text_frame = text_frame
 		self.inserted = []
 
-	def insert_picture(self, path: str) -> None:
-		self.inserted.append(path)
+	def insert_picture(self, stream) -> None:
+		self.inserted.append(stream)
 
 
 class FakeShapes:
@@ -186,7 +186,7 @@ def test_place_images_grid_calls_add_picture() -> None:
 	"""
 	shapes = FakeShapes([])
 	slide = FakeSlide(shapes, pptx.util.Inches(10), pptx.util.Inches(7.5))
-	rebuild_slides.place_images_grid(slide, ["a.png", "b.png", "c.png"])
+	rebuild_slides.place_images_grid(slide, [b"a", b"b", b"c"])
 	assert len(shapes.pictures) == 3
 	for path, left, top, width, height in shapes.pictures:
 		assert width > 0
@@ -204,6 +204,25 @@ def test_insert_images_uses_placeholder() -> None:
 	)
 	shapes = FakeShapes([picture_shape])
 	slide = FakeSlide(shapes, pptx.util.Inches(10), pptx.util.Inches(7.5))
-	rebuild_slides.insert_images(slide, ["only.png"])
-	assert picture_shape.inserted == ["only.png"]
+	rebuild_slides.insert_images(slide, [b"only"])
+	assert len(picture_shape.inserted) == 1
 	assert shapes.pictures == []
+
+
+#============================================
+def test_select_images_by_locator() -> None:
+	"""
+	Select images by locator strings.
+	"""
+	images = [
+		{"blob": b"a", "hash": "h1", "shape_id": 7},
+		{"blob": b"b", "hash": "h2", "shape_id": 9},
+	]
+	locators = ["pptx:deck.pptx#slide=2#shape_id=7"]
+	selected = rebuild_slides.select_images_by_locator(
+		images,
+		locators,
+		"deck.pptx",
+		2,
+	)
+	assert selected == [b"a"]

@@ -8,7 +8,7 @@ def build_row(
 	source_slide_index: str = "1",
 	text_hash: str = "",
 	slide_fingerprint: str = "",
-	image_refs: str = "",
+	image_locators: str = "",
 	image_hashes: str = "",
 ) -> dict[str, str]:
 	"""
@@ -22,7 +22,7 @@ def build_row(
 		"body_text": "Body",
 		"notes_text": "",
 		"layout_hint": "title_and_content",
-		"image_refs": image_refs,
+		"image_locators": image_locators,
 		"image_hashes": image_hashes,
 		"text_hash": text_hash,
 		"slide_fingerprint": slide_fingerprint,
@@ -45,14 +45,14 @@ def test_validate_rows_ok_strict() -> None:
 		slide_uid="uid1",
 		text_hash=text_hash,
 		slide_fingerprint=slide_fingerprint,
-		image_refs="",
+		image_locators="",
 		image_hashes="",
 	)
 	rows = [row]
 	errors, warnings = validate_csv.validate_rows(
 		rows,
-		assets_dir="assets",
-		check_assets=False,
+		csv_dir="",
+		check_sources=False,
 		strict=True,
 	)
 	assert not errors
@@ -67,8 +67,8 @@ def test_validate_rows_duplicate_uid() -> None:
 	rows = [build_row("dup"), build_row("dup")]
 	errors, warnings = validate_csv.validate_rows(
 		rows,
-		assets_dir="assets",
-		check_assets=False,
+		csv_dir="",
+		check_sources=False,
 		strict=False,
 	)
 	assert any("duplicate slide_uid" in item for item in errors)
@@ -83,13 +83,49 @@ def test_validate_rows_missing_hashes_warning() -> None:
 	rows = [build_row("uid1")]
 	errors, warnings = validate_csv.validate_rows(
 		rows,
-		assets_dir="assets",
-		check_assets=False,
+		csv_dir="",
+		check_sources=False,
 		strict=False,
 	)
 	assert not errors
 	assert any("text_hash is missing" in item for item in warnings)
 	assert any("slide_fingerprint is missing" in item for item in warnings)
+
+
+#============================================
+def test_validate_rows_locator_hash_mismatch() -> None:
+	"""
+	Detect locator and hash length mismatches.
+	"""
+	rows = [
+		build_row(
+			"uid1",
+			image_locators="pptx:deck.pptx#slide=1#shape_id=1",
+			image_hashes="hash1|hash2",
+		)
+	]
+	errors, warnings = validate_csv.validate_rows(
+		rows,
+		csv_dir="",
+		check_sources=False,
+		strict=False,
+	)
+	assert any("length mismatch" in item for item in errors)
+
+
+#============================================
+def test_validate_rows_invalid_locator() -> None:
+	"""
+	Detect invalid image locator strings.
+	"""
+	rows = [build_row("uid1", image_locators="bad-locator")]
+	errors, warnings = validate_csv.validate_rows(
+		rows,
+		csv_dir="",
+		check_sources=False,
+		strict=False,
+	)
+	assert any("invalid image_locator" in item for item in errors)
 
 
 #============================================
@@ -100,8 +136,8 @@ def test_validate_rows_bad_slide_index() -> None:
 	rows = [build_row("uid1", source_slide_index="zero")]
 	errors, warnings = validate_csv.validate_rows(
 		rows,
-		assets_dir="assets",
-		check_assets=False,
+		csv_dir="",
+		check_sources=False,
 		strict=False,
 	)
 	assert any("invalid source_slide_index" in item for item in errors)

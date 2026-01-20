@@ -1,32 +1,38 @@
 # Concept implementation plan
 
 ## Goal
-- Build a repeatable extract, merge, rebuild pipeline for PPTX decks that is
+- Build a repeatable index, merge, rebuild pipeline for PPTX decks that is
   deterministic in Python and flexible in the LLM merge step.
 
 ## Scope
-- Extract PPTX slides to a structured CSV plus assets.
+- Index PPTX slides to a structured CSV.
 - Merge sources into a single CSV with provenance tracking.
-- Rebuild a new PPTX from the merged spec using a theme template.
-- Support ODP inputs by converting to PPTX before extraction or rebuild.
+- Rebuild a new PPTX from the merged spec using a theme template and the source
+  decks referenced in the CSV.
+- Support ODP inputs by converting to PPTX before indexing or rebuild.
 
 ## Data model and identifiers
 - Define a slide record with stable keys: source_pptx, source_slide_index,
-  slide_uid, title_text, body_text, notes_text, layout_hint, image_refs,
+  slide_uid, title_text, body_text, notes_text, layout_hint, image_locators,
   image_hashes, text_hash, slide_fingerprint.
 - Generate slide_uid from a stable hash of source_pptx + slide_index +
   normalized text + image hashes (or UUID + stored fingerprint).
-- Store image_refs and hashes as ordered lists encoded in CSV fields.
-- Keep binary image data out of the CSV; store only asset references.
+- Store image locators and hashes as ordered lists encoded in CSV fields.
+- Keep binary image data out of the CSV; resolve images from source slides.
 - Keep CSV as the only canonical structure; avoid JSON or YAML nesting.
 - Normalize text for hashing (whitespace, bullet markers, case rules).
 
-## Phase 1: Extraction
-- Implement a PPTX extractor that outputs per-slide records and exports images
-  to assets/<slide_uid>_imgNN.ext.
+### Image locator format
+- Store each locator as a compact string that can be parsed, for example:
+  - pptx:deck.pptx#slide=12#shape_id=5
+- Keep image_hashes aligned with image_locators for integrity checks.
+
+## Phase 1: Indexing
+- Implement a PPTX indexer that outputs per-slide records without exporting images.
 - Capture notes_text and layout_hint when available.
-- Hash images (SHA256 for exact match, perceptual hash for near-dup).
-- Emit a validation report: missing text, missing images, and unsupported shapes.
+- Record image locators and hashes (SHA256 for exact match).
+- Emit a validation report: missing text, missing source decks, and unsupported
+  shapes.
 
 ## Phase 2: Merge and canonical spec
 - Define a canonical CSV schema with ordered slides and provenance.
@@ -34,14 +40,15 @@
   - Reuse slide_uid when keeping a slide.
   - Create new slide_uid when merging content, with provenance list.
   - Keep layout_hint explicit and only from a small allowed set.
-- Implement a validator that checks CSV headers, missing assets, and
-  layout_hint validity before rebuild.
+- Implement a validator that checks CSV headers, missing source deck files,
+  image locator validity, and layout_hint validity before rebuild.
 
 ## Phase 3: Rebuild
 - Start from a template PPTX with approved masters and layouts.
 - Map layout_hint to template layouts with fixed bounding boxes.
 - Insert title/body text and notes with explicit formatting.
-- Insert images by image_refs with consistent sizing and alignment rules.
+- Insert images by resolving image locators against source decks and verify
+  with image_hashes when available.
 - Apply theme rules for fonts, sizes, colors, spacing, and bullet indentation.
 
 ## Deduplication strategy
@@ -56,16 +63,16 @@
 
 ## CLI and configuration
 - Provide a minimal CLI with explicit input/output paths and mode flags.
-- Separate commands: extract, merge-csv-validate, rebuild.
+- Separate commands: index, merge-csv-validate, rebuild.
 - Store defaults in code, not environment variables.
 
 ## Testing and validation
 - Add small fixture PPTX files for smoke tests.
-- Test extract output schema, asset export, and hash stability.
+- Test index output schema and hash stability.
 - Test rebuild output by checking slide count and expected text presence.
 
 ## Documentation updates
-- Add usage docs for extract, merge, and rebuild flows.
+- Add usage docs for index, merge, and rebuild flows.
 - Document the canonical spec schema and supported layout hints.
 
 ## Milestones

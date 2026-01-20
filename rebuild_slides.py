@@ -1,4 +1,8 @@
+#!/usr/bin/env python3
+
 import argparse
+import hashlib
+import io
 import math
 import os
 import shutil
@@ -40,15 +44,8 @@ def parse_args() -> argparse.Namespace:
 		"-o",
 		"--output",
 		dest="output_path",
-		required=True,
-		help="Output PPTX or ODP path",
-	)
-	parser.add_argument(
-		"-a",
-		"--assets-dir",
-		dest="assets_dir",
 		default="",
-		help="Assets directory (default: <input_csv>_assets)",
+		help="Output PPTX or ODP path (default: <input_csv>.pptx)",
 	)
 	parser.add_argument(
 		"-t",
@@ -59,6 +56,41 @@ def parse_args() -> argparse.Namespace:
 	)
 	args = parser.parse_args()
 	return args
+
+
+#============================================
+def convert_odp_to_pptx(odp_path: str, work_dir: str) -> str:
+	"""
+	Convert an ODP file to PPTX using soffice.
+
+	Args:
+		odp_path: Path to the ODP file.
+		work_dir: Output directory for the converted PPTX.
+
+	Returns:
+		str: Path to the converted PPTX file.
+	"""
+	soffice_bin = shutil.which("soffice")
+	if not soffice_bin:
+		raise FileNotFoundError("soffice not found. Install LibreOffice to convert ODP.")
+	command = [
+		soffice_bin,
+		"--headless",
+		"--convert-to",
+		"pptx",
+		"--outdir",
+		work_dir,
+		odp_path,
+	]
+	result = subprocess.run(command, capture_output=True, text=True, cwd=work_dir)
+	if result.returncode != 0:
+		message = result.stderr.strip() or result.stdout.strip()
+		raise RuntimeError(f"ODP conversion failed: {message}")
+	base_name = os.path.splitext(os.path.basename(odp_path))[0]
+	pptx_path = os.path.join(work_dir, f"{base_name}.pptx")
+	if not os.path.exists(pptx_path):
+		raise FileNotFoundError(f"Converted PPTX not found: {pptx_path}")
+	return pptx_path
 
 
 #============================================
@@ -234,47 +266,146 @@ def set_body_text(slide: pptx.slide.Slide, body_text: str) -> None:
 
 
 #============================================
-def resolve_assets_dir(input_csv: str, assets_dir: str) -> str:
+def resolve_source_path(source_pptx: str, csv_dir: str) -> str:
 	"""
-	Resolve the assets directory.
+	Resolve a source path using the CSV directory as fallback.
 
 	Args:
-		input_csv: Input CSV path.
-		assets_dir: Assets directory or empty string.
+		source_pptx: Source PPTX or ODP path from CSV.
+		csv_dir: Directory containing the CSV.
 
 	Returns:
-		str: Resolved assets directory.
+		str: Resolved source path.
 	"""
-	resolved_dir = assets_dir
-	if not resolved_dir:
-		base_name = os.path.splitext(input_csv)[0]
-		resolved_dir = f"{base_name}_assets"
-	return resolved_dir
+	if os.path.exists(source_pptx):
+		return source_pptx
+	if csv_dir:
+		candidate = os.path.join(csv_dir, source_pptx)
+		if os.path.exists(candidate):
+			return candidate
+	raise FileNotFoundError(f"Source file not found: {source_pptx}")
 
 
 #============================================
-def build_image_paths(assets_dir: str, image_refs: list[str]) -> list[str]:
+def collect_source_images(slide: pptx.slide.Slide) -> list[dict[str, str | bytes]]:
 	"""
-	Resolve image reference filenames to full paths.
+	Collect image blobs and hashes from a source slide.
 
 	Args:
-		assets_dir: Assets directory.
-		image_refs: Image reference filenames.
+		slide: Source slide instance.
 
 	Returns:
-		list[str]: Full image paths.
+		list[dict[str, str | bytes]]: Image records.
 	"""
-	paths = []
-	for ref in image_refs:
-		path = os.path.join(assets_dir, ref)
-		if not os.path.exists(path):
-			raise FileNotFoundError(f"Missing image asset: {path}")
-		paths.append(path)
-	return paths
+	images = []
+	for shape in slide.shapes:
+		if shape.shape_type != pptx.enum.shapes.MSO_SHAPE_TYPE.PICTURE:
+			continue
+		blob = shape.image.blob
+		digest = hashlib.sha256(blob).hexdigest()
+		shape_id = shape.shape_id
+		images.append({"blob": blob, "hash": digest, "shape_id": shape_id})
+	return images
 
 
 #============================================
-def place_images_grid(slide: pptx.slide.Slide, image_paths: list[str]) -> None:
+def sources_match(locator_source: str, row_source: str) -> bool:
+	"""
+	Check whether locator and row sources refer to the same file.
+
+	Args:
+		locator_source: Source from locator.
+		row_source: Source from CSV row.
+
+	Returns:
+		bool: True if sources match.
+	"""
+	if locator_source == row_source:
+		return True
+	if os.path.basename(locator_source) == os.path.basename(row_source):
+		return True
+	return False
+
+
+#============================================
+def select_images_by_locator(
+	images: list[dict[str, str | bytes]],
+	image_locators: list[str],
+	row_source: str,
+	slide_index: int,
+) -> list[bytes]:
+	"""
+	Select images using locator strings.
+
+	Args:
+		images: Image records.
+		image_locators: Locator strings.
+		row_source: Source PPTX or ODP name.
+		slide_index: Slide index.
+
+	Returns:
+		list[bytes]: Ordered image blobs.
+	"""
+	if not image_locators:
+		return []
+	lookup: dict[str, list[bytes]] = {}
+	for image in images:
+		shape_id = str(image.get("shape_id", ""))
+		if not shape_id:
+			continue
+		lookup.setdefault(shape_id, []).append(image["blob"])
+	ordered = []
+	for locator in image_locators:
+		parsed = slide_csv.parse_image_locator(locator)
+		if not parsed:
+			continue
+		locator_source = parsed.get("source", "")
+		if not sources_match(locator_source, row_source):
+			continue
+		locator_slide = parsed.get("slide", "")
+		if locator_slide != str(slide_index):
+			continue
+		shape_id = parsed.get("shape_id", "")
+		if not shape_id:
+			continue
+		candidates = lookup.get(shape_id, [])
+		if not candidates:
+			continue
+		ordered.append(candidates.pop(0))
+	return ordered
+
+
+#============================================
+def select_images_by_hash(
+	images: list[dict[str, str | bytes]],
+	image_hashes: list[str],
+) -> list[bytes]:
+	"""
+	Select images in the order of hash list.
+
+	Args:
+		images: Image records.
+		image_hashes: Desired image hashes.
+
+	Returns:
+		list[bytes]: Ordered image blobs.
+	"""
+	if not image_hashes:
+		return [image["blob"] for image in images]
+	lookup = {}
+	for image in images:
+		lookup.setdefault(image["hash"], []).append(image["blob"])
+	ordered = []
+	for digest in image_hashes:
+		candidates = lookup.get(digest, [])
+		if not candidates:
+			continue
+		ordered.append(candidates.pop(0))
+	return ordered
+
+
+#============================================
+def place_images_grid(slide: pptx.slide.Slide, image_blobs: list[bytes]) -> None:
 	"""
 	Place images on a slide using a simple grid.
 
@@ -282,24 +413,25 @@ def place_images_grid(slide: pptx.slide.Slide, image_paths: list[str]) -> None:
 		slide: Slide instance.
 		image_paths: Image file paths.
 	"""
-	if not image_paths:
+	if not image_blobs:
 		return
 	cols = 1
-	if len(image_paths) > 1:
+	if len(image_blobs) > 1:
 		cols = 2
-	rows = int(math.ceil(len(image_paths) / cols))
+	rows = int(math.ceil(len(image_blobs) / cols))
 	margin = pptx.util.Inches(0.5)
 	slide_width = slide.part.presentation.slide_width
 	slide_height = slide.part.presentation.slide_height
 	cell_width = (slide_width - (margin * (cols + 1))) // cols
 	cell_height = (slide_height - (margin * (rows + 1))) // rows
-	for index, image_path in enumerate(image_paths):
+	for index, blob in enumerate(image_blobs):
 		row = index // cols
 		col = index % cols
 		left = margin + (cell_width + margin) * col
 		top = margin + (cell_height + margin) * row
+		stream = io.BytesIO(blob)
 		slide.shapes.add_picture(
-			image_path,
+			stream,
 			left,
 			top,
 			width=cell_width,
@@ -308,7 +440,7 @@ def place_images_grid(slide: pptx.slide.Slide, image_paths: list[str]) -> None:
 
 
 #============================================
-def insert_images(slide: pptx.slide.Slide, image_paths: list[str]) -> None:
+def insert_images(slide: pptx.slide.Slide, image_blobs: list[bytes]) -> None:
 	"""
 	Insert images into a slide.
 
@@ -316,7 +448,7 @@ def insert_images(slide: pptx.slide.Slide, image_paths: list[str]) -> None:
 		slide: Slide instance.
 		image_paths: Image file paths.
 	"""
-	if not image_paths:
+	if not image_blobs:
 		return
 	picture_placeholders = []
 	for shape in slide.shapes:
@@ -324,17 +456,17 @@ def insert_images(slide: pptx.slide.Slide, image_paths: list[str]) -> None:
 			continue
 		if shape.placeholder_format.type == pptx.enum.shapes.PP_PLACEHOLDER.PICTURE:
 			picture_placeholders.append(shape)
-	if len(image_paths) == 1 and picture_placeholders:
-		picture_placeholders[0].insert_picture(image_paths[0])
+	if len(image_blobs) == 1 and picture_placeholders:
+		stream = io.BytesIO(image_blobs[0])
+		picture_placeholders[0].insert_picture(stream)
 		return
-	place_images_grid(slide, image_paths)
+	place_images_grid(slide, image_blobs)
 
 
 #============================================
 def rebuild_from_csv(
 	input_csv: str,
 	output_path: str,
-	assets_dir: str,
 	template_path: str,
 ) -> None:
 	"""
@@ -343,30 +475,63 @@ def rebuild_from_csv(
 	Args:
 		input_csv: Input merged CSV path.
 		output_path: Output PPTX or ODP path.
-		assets_dir: Assets directory.
 		template_path: Template PPTX path or empty string.
 	"""
-	resolved_assets_dir = resolve_assets_dir(input_csv, assets_dir)
 	rows = slide_csv.read_slide_csv(input_csv)
 	if template_path:
 		presentation = pptx.Presentation(template_path)
 	else:
 		presentation = pptx.Presentation()
+	csv_dir = os.path.dirname(os.path.abspath(input_csv))
+	source_cache: dict[str, pptx.Presentation] = {}
+	temp_dirs = []
 	for row in rows:
+		source_pptx = row["source_pptx"]
+		source_path = resolve_source_path(source_pptx, csv_dir)
+		source_key = source_path
+		source_presentation = source_cache.get(source_key)
+		if not source_presentation:
+			if source_path.lower().endswith(".odp"):
+				temp_dir = tempfile.TemporaryDirectory()
+				temp_dirs.append(temp_dir)
+				converted = convert_odp_to_pptx(source_path, temp_dir.name)
+				source_presentation = pptx.Presentation(converted)
+			else:
+				source_presentation = pptx.Presentation(source_path)
+			source_cache[source_key] = source_presentation
+
+		slide_index = int(row["source_slide_index"])
+		if slide_index < 1 or slide_index > len(source_presentation.slides):
+			raise ValueError(
+				f"Source slide index out of range: {source_pptx} {slide_index}."
+			)
+		source_slide = source_presentation.slides[slide_index - 1]
+		source_images = collect_source_images(source_slide)
+		image_locators = slide_csv.split_list_field(row["image_locators"])
+		image_hashes = slide_csv.split_list_field(row["image_hashes"])
+		image_blobs = select_images_by_locator(
+			source_images,
+			image_locators,
+			source_pptx,
+			slide_index,
+		)
+		if not image_blobs:
+			image_blobs = select_images_by_hash(source_images, image_hashes)
+
 		layout = select_layout(presentation, row["layout_hint"])
 		slide = presentation.slides.add_slide(layout)
 		set_title(slide, row["title_text"])
 		set_body_text(slide, row["body_text"])
-		image_refs = slide_csv.split_list_field(row["image_refs"])
-		image_paths = build_image_paths(resolved_assets_dir, image_refs)
-		insert_images(slide, image_paths)
+		insert_images(slide, image_blobs)
 	if output_path.lower().endswith(".odp"):
 		with tempfile.TemporaryDirectory() as temp_dir:
 			temp_pptx = os.path.join(temp_dir, "merged.pptx")
 			presentation.save(temp_pptx)
 			convert_pptx_to_odp(temp_pptx, output_path)
-		return
-	presentation.save(output_path)
+	else:
+		presentation.save(output_path)
+	for temp_dir in temp_dirs:
+		temp_dir.cleanup()
 
 
 #============================================
@@ -375,10 +540,13 @@ def main() -> None:
 	Main entry point.
 	"""
 	args = parse_args()
+	output_path = args.output_path
+	if not output_path:
+		base_name = os.path.splitext(args.input_csv)[0]
+		output_path = f"{base_name}.pptx"
 	rebuild_from_csv(
 		args.input_csv,
-		args.output_path,
-		args.assets_dir,
+		output_path,
 		args.template_path,
 	)
 

@@ -4,9 +4,9 @@
 - [AGENTS.md](AGENTS.md): agent instructions and workflow guardrails.
 - [README.md](README.md): project overview and doc links.
 - [slide_csv.py](slide_csv.py): CSV schema and hashing utilities.
-- [extract_slides.py](extract_slides.py): extract slides to CSV plus assets.
+- [index_slide_deck.py](index_slide_deck.py): index slides to CSV.
 - [rebuild_slides.py](rebuild_slides.py): rebuild slides from merged CSV.
-- [validate_csv.py](validate_csv.py): validate merged CSVs and assets.
+- [validate_csv.py](validate_csv.py): validate merged CSVs and source references.
 - [docs/](docs/): repository documentation.
 - [tests/](tests/): repo hygiene checks and unit tests.
 - [devel/](devel/): developer helper scripts.

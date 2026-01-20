@@ -1,8 +1,8 @@
 # slide-deck-pipeline
 
-Extract PPTX or ODP slide decks to CSV with assets, merge rows externally, and
-rebuild a themed PPTX or ODP from a template for workflows that consolidate
-multiple decks.
+Index PPTX or ODP slide decks to CSV, merge rows externally, and rebuild a
+themed PPTX or ODP from a template for workflows that consolidate multiple
+decks.
 
 ## Documentation
 - [docs/INSTALL.md](docs/INSTALL.md): setup requirements and dependencies.
@@ -15,11 +15,12 @@ multiple decks.
 
 ## Quick start
 ```bash
-python3 extract_slides.py -i input.pptx -o slides.csv
+python3 index_slide_deck.py -i input.pptx
 ```
 
 Merge CSV rows externally, then rebuild a deck with `rebuild_slides.py` (see
-[docs/USAGE.md](docs/USAGE.md)).
+[docs/USAGE.md](docs/USAGE.md)). Defaults: `input.pptx` -> `input.csv`,
+`merged.csv` -> `merged.pptx`.
 
 ## Testing
 ```bash

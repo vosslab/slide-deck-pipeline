@@ -5,8 +5,8 @@ CLI scripts can run, plus LibreOffice if you plan to convert ODP files.
 
 ## Requirements
 - Python 3 (exact version not specified in repo).
-- `python-pptx` (imported as `pptx` in [extract_slides.py](extract_slides.py) and
-  [rebuild_slides.py](rebuild_slides.py)).
+- `python-pptx` (imported as `pptx` in [index_slide_deck.py](index_slide_deck.py)
+  and [rebuild_slides.py](rebuild_slides.py)).
 - LibreOffice `soffice` binary for ODP conversion.
 
 ## Install steps
@@ -16,7 +16,7 @@ CLI scripts can run, plus LibreOffice if you plan to convert ODP files.
 
 ## Verify install
 ```bash
-python3 extract_slides.py --help
+python3 index_slide_deck.py --help
 ```
 
 ## Known gaps

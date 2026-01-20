@@ -11,7 +11,7 @@ CSV_COLUMNS = [
 	"body_text",
 	"notes_text",
 	"layout_hint",
-	"image_refs",
+	"image_locators",
 	"image_hashes",
 	"text_hash",
 	"slide_fingerprint",
@@ -77,6 +77,66 @@ def join_list_field(items: list[str]) -> str:
 	if not items:
 		return ""
 	return LIST_DELIMITER.join(items)
+
+
+#============================================
+def build_image_locator(source_pptx: str, slide_index: int, shape_id: int) -> str:
+	"""
+	Build an image locator string.
+
+	Args:
+		source_pptx: Source PPTX or ODP filename.
+		slide_index: 1-based slide index.
+		shape_id: Shape ID for the picture shape.
+
+	Returns:
+		str: Locator string.
+	"""
+	extension = os.path.splitext(source_pptx)[1].lower().lstrip(".")
+	if not extension:
+		extension = "pptx"
+	return (
+		f"{extension}:{source_pptx}"
+		f"#slide={slide_index}"
+		f"#shape_id={shape_id}"
+	)
+
+
+#============================================
+def parse_image_locator(locator: str) -> dict[str, str] | None:
+	"""
+	Parse an image locator string into parts.
+
+	Args:
+		locator: Locator string.
+
+	Returns:
+		dict[str, str] | None: Parsed locator parts, or None if invalid.
+	"""
+	if not locator:
+		return None
+	parts = locator.split("#")
+	if not parts:
+		return None
+	source_part = parts[0]
+	if ":" in source_part:
+		fmt, source = source_part.split(":", 1)
+	else:
+		fmt = ""
+		source = source_part
+	parsed = {"format": fmt, "source": source}
+	for part in parts[1:]:
+		if "=" not in part:
+			continue
+		key, value = part.split("=", 1)
+		parsed[key] = value
+	if "slide" not in parsed:
+		return None
+	if "shape_id" not in parsed and "shape" in parsed:
+		parsed["shape_id"] = parsed["shape"]
+	if "shape_id" not in parsed:
+		return None
+	return parsed
 
 
 #============================================

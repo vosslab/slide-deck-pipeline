@@ -78,3 +78,16 @@ def test_validate_headers_error() -> None:
 	headers.append("extra")
 	with pytest.raises(ValueError):
 		slide_csv.validate_headers(headers)
+
+
+#============================================
+def test_image_locator_roundtrip() -> None:
+	"""
+	Build and parse image locator strings.
+	"""
+	locator = slide_csv.build_image_locator("deck.pptx", 12, 5)
+	parsed = slide_csv.parse_image_locator(locator)
+	assert parsed is not None
+	assert parsed["source"] == "deck.pptx"
+	assert parsed["slide"] == "12"
+	assert parsed["shape_id"] == "5"

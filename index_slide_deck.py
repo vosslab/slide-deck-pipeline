@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-import hashlib
 import os
 import shutil
 import subprocess
@@ -12,18 +11,7 @@ import pptx
 import pptx.enum.shapes
 
 # local repo modules
-import slide_csv
-
-
-LAYOUT_HINT_MAP = {
-	"title_and_content": "title_and_content",
-	"title_and_object": "title_and_content",
-	"title_only": "section_header",
-	"section_header": "section_header",
-	"two_content": "two_column",
-	"two_column": "two_column",
-	"blank": "blank",
-}
+import slide_deck_pipeline.csv_schema as csv_schema
 
 
 #============================================
@@ -112,23 +100,6 @@ def resolve_input_pptx(input_path: str, temp_dir: str | None) -> tuple[str, str]
 
 
 #============================================
-def normalize_layout_hint(layout_name: str) -> str:
-	"""
-	Normalize a PowerPoint layout name to a hint value.
-
-	Args:
-		layout_name: Layout name from pptx.
-
-	Returns:
-		str: Normalized layout hint.
-	"""
-	if not layout_name:
-		return "custom"
-	normalized = layout_name.strip().lower().replace(" ", "_")
-	return LAYOUT_HINT_MAP.get(normalized, normalized)
-
-
-#============================================
 def extract_paragraph_lines(text_frame: pptx.text.text.TextFrame) -> list[str]:
 	"""
 	Extract text frame paragraphs with indentation markers.
@@ -150,6 +121,76 @@ def extract_paragraph_lines(text_frame: pptx.text.text.TextFrame) -> list[str]:
 
 
 #============================================
+def extract_table_text(table: pptx.table.Table) -> list[str]:
+	"""
+	Extract text from a table.
+
+	Args:
+		table: Table instance.
+
+	Returns:
+		list[str]: Table cell lines.
+	"""
+	lines = []
+	for row in table.rows:
+		for cell in row.cells:
+			if not cell.text_frame:
+				continue
+			lines.extend(extract_paragraph_lines(cell.text_frame))
+	return lines
+
+
+#============================================
+def extract_chart_title_text(chart) -> list[str]:
+	"""
+	Extract chart title text when available.
+
+	Args:
+		chart: Chart instance.
+
+	Returns:
+		list[str]: Chart title lines.
+	"""
+	if not chart:
+		return []
+	if not getattr(chart, "has_title", False):
+		return []
+	chart_title = getattr(chart, "chart_title", None)
+	if not chart_title or not getattr(chart_title, "text_frame", None):
+		return []
+	return extract_paragraph_lines(chart_title.text_frame)
+
+
+#============================================
+def extract_shape_text(shape) -> list[str]:
+	"""
+	Extract text from a shape, including tables and chart titles.
+
+	Args:
+		shape: Shape instance.
+
+	Returns:
+		list[str]: Text lines.
+	"""
+	lines = []
+	if (
+		getattr(shape, "shape_type", None)
+		== pptx.enum.shapes.MSO_SHAPE_TYPE.GROUP
+		and hasattr(shape, "shapes")
+	):
+		for nested in shape.shapes:
+			lines.extend(extract_shape_text(nested))
+		return lines
+	if getattr(shape, "has_text_frame", False):
+		lines.extend(extract_paragraph_lines(shape.text_frame))
+	if getattr(shape, "has_table", False):
+		lines.extend(extract_table_text(shape.table))
+	if getattr(shape, "has_chart", False):
+		lines.extend(extract_chart_title_text(shape.chart))
+	return lines
+
+
+#============================================
 def extract_body_text(slide: pptx.slide.Slide) -> str:
 	"""
 	Extract body text from non-title text frames.
@@ -165,9 +206,7 @@ def extract_body_text(slide: pptx.slide.Slide) -> str:
 	for shape in slide.shapes:
 		if title_shape and shape == title_shape:
 			continue
-		if not shape.has_text_frame:
-			continue
-		lines.extend(extract_paragraph_lines(shape.text_frame))
+		lines.extend(extract_shape_text(shape))
 	return "\n".join(lines)
 
 
@@ -191,39 +230,20 @@ def extract_notes_text(slide: pptx.slide.Slide) -> str:
 
 
 #============================================
-def collect_slide_images(
-	slide: pptx.slide.Slide,
-	source_name: str,
-	slide_index: int,
-) -> list[dict[str, str | bytes]]:
+def extract_slide_text(slide: pptx.slide.Slide) -> str:
 	"""
-	Collect slide image blobs, hashes, and locators.
+	Extract all on-slide text for hashing.
 
 	Args:
 		slide: Slide instance.
-		source_name: Source PPTX or ODP basename.
-		slide_index: 1-based slide index.
 
 	Returns:
-		list[dict[str, str | bytes]]: Image records with blob, hash, and locator.
+		str: Slide text.
 	"""
-	images = []
+	lines = []
 	for shape in slide.shapes:
-		if shape.shape_type != pptx.enum.shapes.MSO_SHAPE_TYPE.PICTURE:
-			continue
-		blob = shape.image.blob
-		digest = hashlib.sha256(blob).hexdigest()
-		shape_id = shape.shape_id
-		locator = slide_csv.build_image_locator(source_name, slide_index, shape_id)
-		images.append(
-			{
-				"blob": blob,
-				"hash": digest,
-				"shape_id": shape_id,
-				"locator": locator,
-			}
-		)
-	return images
+		lines.extend(extract_shape_text(shape))
+	return "\n".join(lines)
 
 
 #============================================
@@ -233,9 +253,9 @@ def build_slide_row(
 	title_text: str,
 	body_text: str,
 	notes_text: str,
-	layout_hint: str,
-	image_locators: list[str],
-	image_hashes: list[str],
+	slide_text: str,
+	master_name: str,
+	layout_name: str,
 ) -> dict[str, str]:
 	"""
 	Build a CSV row for a slide.
@@ -246,40 +266,22 @@ def build_slide_row(
 		title_text: Title text.
 		body_text: Body text.
 		notes_text: Notes text.
-		layout_hint: Layout hint.
-		image_locators: Image locator list.
-		image_hashes: Image hash list.
+		master_name: Template master name.
+		layout_name: Template layout name.
 
 	Returns:
 		dict[str, str]: CSV row.
 	"""
-	text_hash = slide_csv.compute_text_hash(title_text, body_text, notes_text)
-	slide_fingerprint = slide_csv.compute_slide_fingerprint(
-		title_text,
-		body_text,
-		notes_text,
-		image_hashes,
-	)
-	slide_uid = slide_csv.compute_slide_uid(
-		source_name,
-		slide_index,
-		title_text,
-		body_text,
-		notes_text,
-		image_hashes,
-	)
+	slide_hash = csv_schema.compute_slide_hash(source_name, slide_index, slide_text)
 	return {
 		"source_pptx": source_name,
 		"source_slide_index": str(slide_index),
-		"slide_uid": slide_uid,
+		"slide_hash": slide_hash,
+		"master_name": master_name,
+		"layout_name": layout_name,
 		"title_text": title_text,
 		"body_text": body_text,
 		"notes_text": notes_text,
-		"layout_hint": layout_hint,
-		"image_locators": slide_csv.join_list_field(image_locators),
-		"image_hashes": slide_csv.join_list_field(image_hashes),
-		"text_hash": text_hash,
-		"slide_fingerprint": slide_fingerprint,
 	}
 
 
@@ -300,7 +302,7 @@ def index_slides_to_csv(input_path: str, output_csv: str) -> None:
 	else:
 		pptx_path, source_name = resolve_input_pptx(input_path, None)
 		rows = index_rows(pptx_path, source_name)
-	slide_csv.write_slide_csv(output_csv, rows)
+	csv_schema.write_slide_csv(output_csv, rows)
 
 
 #============================================
@@ -326,19 +328,17 @@ def index_rows(
 			title_text = slide.shapes.title.text_frame.text or ""
 		body_text = extract_body_text(slide)
 		notes_text = extract_notes_text(slide)
-		layout_hint = normalize_layout_hint(slide.slide_layout.name)
-		images = collect_slide_images(slide, source_name, index)
-		image_hashes = [image["hash"] for image in images]
-		image_locators = [image["locator"] for image in images]
+		slide_text = extract_slide_text(slide)
+		layout_name = slide.slide_layout.name
 		row = build_slide_row(
 			source_name,
 			index,
 			title_text,
 			body_text,
 			notes_text,
-			layout_hint,
-			image_locators,
-			image_hashes,
+			slide_text,
+			"",
+			layout_name,
 		)
 		rows.append(row)
 	return rows

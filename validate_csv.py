@@ -4,7 +4,7 @@ import argparse
 import os
 
 # local repo modules
-import slide_csv
+import slide_deck_pipeline.csv_schema as csv_schema
 
 
 #============================================
@@ -189,10 +189,10 @@ def validate_rows(
 		if not layout_hint:
 			warnings.append(f"Row {index}: missing layout_hint.")
 
-		image_locators = slide_csv.split_list_field(
+		image_locators = csv_schema.split_list_field(
 			normalize_row_value(row, "image_locators")
 		)
-		image_hashes = slide_csv.split_list_field(
+		image_hashes = csv_schema.split_list_field(
 			normalize_row_value(row, "image_hashes")
 		)
 		if image_locators and image_hashes:
@@ -207,7 +207,7 @@ def validate_rows(
 
 		if image_locators:
 			for locator in image_locators:
-				parsed = slide_csv.parse_image_locator(locator)
+				parsed = csv_schema.parse_image_locator(locator)
 				if not parsed:
 					errors.append(f"Row {index}: invalid image_locator {locator}.")
 					continue
@@ -225,12 +225,12 @@ def validate_rows(
 			title_text = normalize_row_value(row, "title_text")
 			body_text = normalize_row_value(row, "body_text")
 			notes_text = normalize_row_value(row, "notes_text")
-			expected_text_hash = slide_csv.compute_text_hash(
+			expected_text_hash = csv_schema.compute_text_hash(
 				title_text,
 				body_text,
 				notes_text,
 			)
-			expected_fingerprint = slide_csv.compute_slide_fingerprint(
+			expected_fingerprint = csv_schema.compute_slide_fingerprint(
 				title_text,
 				body_text,
 				notes_text,
@@ -276,7 +276,7 @@ def main() -> None:
 	Main entry point.
 	"""
 	args = parse_args()
-	rows = slide_csv.read_slide_csv(args.input_csv)
+	rows = csv_schema.read_slide_csv(args.input_csv)
 	csv_dir = os.path.dirname(os.path.abspath(args.input_csv))
 	errors, warnings = validate_rows(
 		rows,

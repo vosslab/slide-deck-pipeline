@@ -1,4 +1,4 @@
-import slide_csv
+import slide_deck_pipeline.csv_schema as csv_schema
 import validate_csv
 
 
@@ -34,8 +34,8 @@ def test_validate_rows_ok_strict() -> None:
 	"""
 	Accept valid rows when strict hashing is enabled.
 	"""
-	text_hash = slide_csv.compute_text_hash("Title", "Body", "")
-	slide_fingerprint = slide_csv.compute_slide_fingerprint(
+	text_hash = csv_schema.compute_text_hash("Title", "Body", "")
+	slide_fingerprint = csv_schema.compute_slide_fingerprint(
 		"Title",
 		"Body",
 		"",

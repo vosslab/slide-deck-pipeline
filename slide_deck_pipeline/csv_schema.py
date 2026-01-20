@@ -1,22 +1,18 @@
 import csv
-import hashlib
 import os
+import zlib
 
 
 CSV_COLUMNS = [
 	"source_pptx",
 	"source_slide_index",
-	"slide_uid",
+	"slide_hash",
+	"master_name",
+	"layout_name",
 	"title_text",
 	"body_text",
 	"notes_text",
-	"layout_hint",
-	"image_locators",
-	"image_hashes",
-	"text_hash",
-	"slide_fingerprint",
 ]
-LIST_DELIMITER = "|"
 
 
 #============================================
@@ -47,185 +43,26 @@ def normalize_text(text: str | None) -> str:
 
 
 #============================================
-def split_list_field(value: str | None) -> list[str]:
-	"""
-	Split a delimited list field from CSV.
-
-	Args:
-		value: Field value or None.
-
-	Returns:
-		list[str]: List of items.
-	"""
-	if not value:
-		return []
-	items = [item for item in value.split(LIST_DELIMITER) if item]
-	return items
-
-
-#============================================
-def join_list_field(items: list[str]) -> str:
-	"""
-	Join a list into a delimited CSV field.
-
-	Args:
-		items: Items to join.
-
-	Returns:
-		str: Delimited field value.
-	"""
-	if not items:
-		return ""
-	return LIST_DELIMITER.join(items)
-
-
-#============================================
-def build_image_locator(source_pptx: str, slide_index: int, shape_id: int) -> str:
-	"""
-	Build an image locator string.
-
-	Args:
-		source_pptx: Source PPTX or ODP filename.
-		slide_index: 1-based slide index.
-		shape_id: Shape ID for the picture shape.
-
-	Returns:
-		str: Locator string.
-	"""
-	extension = os.path.splitext(source_pptx)[1].lower().lstrip(".")
-	if not extension:
-		extension = "pptx"
-	return (
-		f"{extension}:{source_pptx}"
-		f"#slide={slide_index}"
-		f"#shape_id={shape_id}"
-	)
-
-
-#============================================
-def parse_image_locator(locator: str) -> dict[str, str] | None:
-	"""
-	Parse an image locator string into parts.
-
-	Args:
-		locator: Locator string.
-
-	Returns:
-		dict[str, str] | None: Parsed locator parts, or None if invalid.
-	"""
-	if not locator:
-		return None
-	parts = locator.split("#")
-	if not parts:
-		return None
-	source_part = parts[0]
-	if ":" in source_part:
-		fmt, source = source_part.split(":", 1)
-	else:
-		fmt = ""
-		source = source_part
-	parsed = {"format": fmt, "source": source}
-	for part in parts[1:]:
-		if "=" not in part:
-			continue
-		key, value = part.split("=", 1)
-		parsed[key] = value
-	if "slide" not in parsed:
-		return None
-	if "shape_id" not in parsed and "shape" in parsed:
-		parsed["shape_id"] = parsed["shape"]
-	if "shape_id" not in parsed:
-		return None
-	return parsed
-
-
-#============================================
-def hash_text(value: str) -> str:
-	"""
-	Hash a string with sha256.
-
-	Args:
-		value: Input text.
-
-	Returns:
-		str: Hex digest.
-	"""
-	return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-#============================================
-def compute_text_hash(title_text: str, body_text: str, notes_text: str) -> str:
-	"""
-	Compute a hash for slide text fields.
-
-	Args:
-		title_text: Title text.
-		body_text: Body text.
-		notes_text: Notes text.
-
-	Returns:
-		str: Text hash.
-	"""
-	parts = [
-		normalize_text(title_text),
-		normalize_text(body_text),
-		normalize_text(notes_text),
-	]
-	joined = "\n".join(parts)
-	return hash_text(joined)
-
-
-#============================================
-def compute_slide_fingerprint(
-	title_text: str,
-	body_text: str,
-	notes_text: str,
-	image_hashes: list[str],
-) -> str:
-	"""
-	Compute a fingerprint that includes text and images.
-
-	Args:
-		title_text: Title text.
-		body_text: Body text.
-		notes_text: Notes text.
-		image_hashes: Ordered image hashes.
-
-	Returns:
-		str: Slide fingerprint.
-	"""
-	text_hash = compute_text_hash(title_text, body_text, notes_text)
-	joined_images = join_list_field(image_hashes)
-	return hash_text(f"{text_hash}\n{joined_images}")
-
-
-#============================================
-def compute_slide_uid(
+def compute_slide_hash(
 	source_pptx: str,
 	slide_index: int,
-	title_text: str,
-	body_text: str,
-	notes_text: str,
-	image_hashes: list[str],
+	slide_text: str,
 ) -> str:
 	"""
-	Compute a stable slide UID from source and content.
+	Compute a stable slide hash from source and text content.
 
 	Args:
 		source_pptx: Source PPTX basename.
 		slide_index: 1-based slide index.
-		title_text: Title text.
-		body_text: Body text.
-		notes_text: Notes text.
-		image_hashes: Ordered image hashes.
+		slide_text: Full slide text content.
 
 	Returns:
-		str: Slide UID.
+		str: Slide hash.
 	"""
-	text_hash = compute_text_hash(title_text, body_text, notes_text)
-	joined_images = join_list_field(image_hashes)
-	key = f"{source_pptx}:{slide_index}:{text_hash}:{joined_images}"
-	return hash_text(key)
+	normalized_text = normalize_text(slide_text)
+	key = f"{source_pptx}:{slide_index}:{normalized_text}"
+	crc_value = zlib.crc32(key.encode("utf-8")) & 0xFFFFFFFF
+	return f"{crc_value:08x}"
 
 
 #============================================

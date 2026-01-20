@@ -4,14 +4,18 @@
 - The repo provides a slide deck pipeline that indexes PPTX content to CSV,
   merges CSVs externally, and rebuilds a PPTX or ODP with a template by pulling
   assets from the source decks referenced in the CSV.
-- The CSV schema and hashing utilities live in [slide_csv.py](slide_csv.py) to
-  keep indexing and rebuild in sync.
+- The CSV is only a slide ordering and selection surface; text edits are handled
+  by separate YAML patch files.
+- The CSV schema and hashing utilities live in
+  [slide_deck_pipeline/csv_schema.py](slide_deck_pipeline/csv_schema.py) to keep
+  indexing and rebuild in sync.
 
 ## Major components
 - [index_slide_deck.py](index_slide_deck.py) indexes PPTX or ODP (via conversion)
   into a CSV.
-- [slide_csv.py](slide_csv.py) defines the CSV schema, list encoding, and stable
-  hashes and IDs used by both pipeline ends.
+- [slide_deck_pipeline/csv_schema.py](slide_deck_pipeline/csv_schema.py) defines
+  the CSV schema, list encoding, and stable hashes and IDs used by both pipeline
+  ends.
 - [rebuild_slides.py](rebuild_slides.py) rebuilds a PPTX from a merged CSV and
   supports optional ODP output via conversion.
 - [docs/concept.txt](docs/concept.txt) and
@@ -35,7 +39,8 @@
 ## Testing and verification
 - Repo hygiene and lint tests live under [tests/](tests/) and are run with
   pytest.
-- CSV utilities are covered by [tests/test_slide_csv.py](tests/test_slide_csv.py).
+- CSV utilities are covered by
+  [tests/test_csv_schema.py](tests/test_csv_schema.py).
 
 ## Extension points
 - Add layout hint mappings and theme enforcement logic in

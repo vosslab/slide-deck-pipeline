@@ -2,6 +2,9 @@
 
 Use the root scripts to index slides to CSV, merge CSVs externally, and
 rebuild a new PPTX or ODP from the merged CSV and original source files.
+The CSV is only a slide ordering and selection surface; text edits use YAML
+patch files.
+CSV text fields (title/body/notes) are for context only and are not editable.
 
 ## Quick start
 ```bash
@@ -52,7 +55,6 @@ python3 validate_csv.py -i merged.csv -c -s
 - Assets directories are no longer produced or consumed.
 - Merged CSVs must preserve `source_pptx` and slide identifiers so rebuild can
   resolve images from the source decks.
-- Preserve `image_locators` and `image_hashes` so images stay aligned.
 
 ## Known gaps
 - TODO: Document the CSV merge rules and LLM instructions for stitching rows.

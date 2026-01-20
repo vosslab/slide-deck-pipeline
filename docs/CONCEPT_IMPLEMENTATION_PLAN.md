@@ -5,7 +5,7 @@
   deterministic in Python and flexible in the LLM merge step.
 
 ## Scope
-- Index PPTX slides to a structured CSV.
+- Index PPTX slides to a structured CSV index.
 - Merge sources into a single CSV with provenance tracking.
 - Rebuild a new PPTX from the merged spec using a theme template and the source
   decks referenced in the CSV.
@@ -13,47 +13,49 @@
 
 ## Data model and identifiers
 - Define a slide record with stable keys: source_pptx, source_slide_index,
-  slide_uid, title_text, body_text, notes_text, layout_hint, image_locators,
-  image_hashes, text_hash, slide_fingerprint.
-- Generate slide_uid from a stable hash of source_pptx + slide_index +
-  normalized text + image hashes (or UUID + stored fingerprint).
-- Store image locators and hashes as ordered lists encoded in CSV fields.
+  slide_hash, master_name, layout_name, title_text, body_text, notes_text.
+- Generate slide_hash from a stable CRC32 of source_pptx + slide_index +
+- normalized slide text.
 - Keep binary image data out of the CSV; resolve images from source slides.
-- Keep CSV as the only canonical structure; avoid JSON or YAML nesting.
+- Keep the CSV as the ordering and selection surface; avoid design authority in
+  CSV fields. title_text/body_text/notes_text are context only and are not
+  editable in the CSV. Use YAML for text edit patches.
 - Normalize text for hashing (whitespace, bullet markers, case rules).
 
-### Image locator format
-- Store each locator as a compact string that can be parsed, for example:
-  - pptx:deck.pptx#slide=12#shape_id=5
-- Keep image_hashes aligned with image_locators for integrity checks.
+### CSV column reference
+- `source_pptx`: source PPTX or ODP basename.
+- `source_slide_index`: integer slide index starting at 1.
+- `slide_hash`: content fingerprint for the slide.
+- `master_name`: editable target template master name.
+- `layout_name`: editable target template layout name.
+- `title_text`: context only; not editable in the CSV.
+- `body_text`: context only; not editable in the CSV.
+- `notes_text`: context only; not editable in the CSV.
 
 ## Phase 1: Indexing
 - Implement a PPTX indexer that outputs per-slide records without exporting images.
-- Capture notes_text and layout_hint when available.
-- Record image locators and hashes (SHA256 for exact match).
+- Capture notes_text and source layout names for reference.
 - Emit a validation report: missing text, missing source decks, and unsupported
   shapes.
 
 ## Phase 2: Merge and canonical spec
 - Define a canonical CSV schema with ordered slides and provenance.
 - Provide LLM instructions that enforce:
-  - Reuse slide_uid when keeping a slide.
-  - Create new slide_uid when merging content, with provenance list.
-  - Keep layout_hint explicit and only from a small allowed set.
-- Implement a validator that checks CSV headers, missing source deck files,
-  image locator validity, and layout_hint validity before rebuild.
+  - Reuse slide_hash when keeping a slide.
+  - Create new slide_hash when merging content, with provenance list.
+  - Keep master_name/layout_name explicit and only from the template deck.
+- Implement a validator that checks CSV headers, missing source deck files, and
+  master/layout validity before rebuild.
 
 ## Phase 3: Rebuild
 - Start from a template PPTX with approved masters and layouts.
-- Map layout_hint to template layouts with fixed bounding boxes.
+- Select layouts from the template deck using master_name/layout_name.
 - Insert title/body text and notes with explicit formatting.
-- Insert images by resolving image locators against source decks and verify
-  with image_hashes when available.
+- Insert images by reading them from the source slides referenced in the CSV.
 - Apply theme rules for fonts, sizes, colors, spacing, and bullet indentation.
 
 ## Deduplication strategy
-- Use text_hash for exact text matches.
-- Use slide_fingerprint (text + image hashes) for slide-level dedup.
+- Use slide_hash for exact text matches.
 - Allow near-dup review for cases where titles collide but images differ.
 
 ## Layout and theme constraints
@@ -73,7 +75,18 @@
 
 ## Documentation updates
 - Add usage docs for index, merge, and rebuild flows.
-- Document the canonical spec schema and supported layout hints.
+- Document the canonical spec schema and master/layout selection rules.
+
+## Slide hash behavior
+- Rebuild locates the source slide by (`source_pptx`, `source_slide_index`).
+- Rebuild recomputes `slide_hash` from the current slide content.
+- If the recomputed hash does not match the CSV `slide_hash`, the slide is
+  rejected.
+
+## Slide hash definition
+- Compute full SHA-256 over normalized slide content.
+- Store the first 16 hex characters (64 bits) as the hash string.
+- Hashes are integrity locks for drift detection, not security features.
 
 ## Milestones
 - M1: Extractor and schema validator in place.

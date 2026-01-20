@@ -15,7 +15,7 @@ import pptx.enum.shapes
 import pptx.util
 
 # local repo modules
-import slide_csv
+import slide_deck_pipeline.csv_schema as csv_schema
 
 
 LAYOUT_HINT_ALIASES = {
@@ -356,7 +356,7 @@ def select_images_by_locator(
 		lookup.setdefault(shape_id, []).append(image["blob"])
 	ordered = []
 	for locator in image_locators:
-		parsed = slide_csv.parse_image_locator(locator)
+		parsed = csv_schema.parse_image_locator(locator)
 		if not parsed:
 			continue
 		locator_source = parsed.get("source", "")
@@ -477,7 +477,7 @@ def rebuild_from_csv(
 		output_path: Output PPTX or ODP path.
 		template_path: Template PPTX path or empty string.
 	"""
-	rows = slide_csv.read_slide_csv(input_csv)
+	rows = csv_schema.read_slide_csv(input_csv)
 	if template_path:
 		presentation = pptx.Presentation(template_path)
 	else:
@@ -507,8 +507,8 @@ def rebuild_from_csv(
 			)
 		source_slide = source_presentation.slides[slide_index - 1]
 		source_images = collect_source_images(source_slide)
-		image_locators = slide_csv.split_list_field(row["image_locators"])
-		image_hashes = slide_csv.split_list_field(row["image_hashes"])
+		image_locators = csv_schema.split_list_field(row["image_locators"])
+		image_hashes = csv_schema.split_list_field(row["image_hashes"])
 		image_blobs = select_images_by_locator(
 			source_images,
 			image_locators,

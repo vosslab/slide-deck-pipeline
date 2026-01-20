@@ -3,7 +3,7 @@ import pytest
 pptx = pytest.importorskip("pptx")
 
 import index_slide_deck
-import slide_csv
+import slide_deck_pipeline.csv_schema as csv_schema
 
 
 class FakeParagraph:
@@ -107,8 +107,8 @@ def test_collect_slide_images() -> None:
 	slide = FakeSlide([picture, other])
 	images = index_slide_deck.collect_slide_images(slide, "deck.pptx", 1)
 	assert len(images) == 1
-	assert images[0]["hash"] == slide_csv.hash_text("data")
-	expected_locator = slide_csv.build_image_locator("deck.pptx", 1, 5)
+	assert images[0]["hash"] == csv_schema.hash_text("data")
+	expected_locator = csv_schema.build_image_locator("deck.pptx", 1, 5)
 	assert images[0]["locator"] == expected_locator
 
 
@@ -131,7 +131,7 @@ def test_build_slide_row() -> None:
 	assert row["source_slide_index"] == "2"
 	assert row["layout_hint"] == "title_and_content"
 	assert row["image_locators"] == "pptx:deck.pptx#slide=2#shape_id=4"
-	expected_uid = slide_csv.compute_slide_uid(
+	expected_uid = csv_schema.compute_slide_uid(
 		"deck.pptx",
 		2,
 		"Title",

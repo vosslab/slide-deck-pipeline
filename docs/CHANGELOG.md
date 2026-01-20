@@ -30,3 +30,27 @@
 - Removed the shebang from pytest conftest to satisfy shebang checks.
 - Finalized theme overflow behavior and clarified locator stability rules.
 - Added a text editing plan for scoped, deterministic slide text updates.
+- Moved shared CSV logic into the slide_deck_pipeline package.
+- Clarified text editing plan details for placeholders, hashes, and bullets.
+- Switched text edit plans to a YAML patch format with box ids and fingerprints.
+- Updated theme plan to use template-defined aspect ratios.
+- Updated validation checks to defer text fitting to the office app.
+- Updated aspect ratio policy to avoid stretched images.
+- Replaced slide_type with master_name and layout_name columns in the theme plan.
+- Removed per-image locator and fit metadata from the theme plan CSV additions.
+- Removed template_name from the theme plan CSV additions.
+- Simplified image fit policy to contain-only.
+- Added template/master/layout definitions to the theme plan.
+- Added a theme definition and aligned typography overflow handling with autofit.
+- Clarified template deck terminology and removed theme scope from the layout plan.
+- Renamed the layout plan to docs/TEMPLATE_LAYOUT_PLAN.md.
+- Replaced the layout registry section with layout selection rules.
+- Clarified that CSV is only for slide ordering/selection and text edits use YAML.
+- Clarified that CSV text fields are context-only and not editable.
+- Moved wide text fields to the end of the CSV column order.
+- Defined CSV columns and layout_hint usage in the plans.
+- Shortened slide_uid to a CRC32 hex value.
+- Updated layout and concept plans with the final CSV column definitions and
+  slide_hash integrity behavior.
+- Aligned text editing plan YAML fields with CSV naming and CRC-style hashes.
+- Defined slide/text hash truncation policy using SHA-256 with 16 hex characters.

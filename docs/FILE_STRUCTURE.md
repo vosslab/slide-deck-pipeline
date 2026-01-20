@@ -3,7 +3,9 @@
 ## Top-level layout
 - [AGENTS.md](AGENTS.md): agent instructions and workflow guardrails.
 - [README.md](README.md): project overview and doc links.
-- [slide_csv.py](slide_csv.py): CSV schema and hashing utilities.
+- [slide_deck_pipeline/](slide_deck_pipeline/): shared modules used by CLI scripts.
+- [slide_deck_pipeline/csv_schema.py](slide_deck_pipeline/csv_schema.py): CSV
+  schema and hashing utilities.
 - [index_slide_deck.py](index_slide_deck.py): index slides to CSV.
 - [rebuild_slides.py](rebuild_slides.py): rebuild slides from merged CSV.
 - [validate_csv.py](validate_csv.py): validate merged CSVs and source references.

@@ -25,3 +25,7 @@
 - Renamed `extract_slides.py` to `index_slide_deck.py`.
 - Added shebangs to CLI scripts and fixed ODP source conversion in rebuild.
 - Added a theme and layout planning document.
+- Refined the theme and layout plan with template-driven geometry and overflow rules.
+- Fixed pytest path setup so repo-root imports resolve from any working directory.
+- Removed the shebang from pytest conftest to satisfy shebang checks.
+- Finalized theme overflow behavior and clarified locator stability rules.

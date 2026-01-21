@@ -28,6 +28,18 @@ def test_slide_hash_consistent() -> None:
 
 
 #============================================
+def test_slide_hash_ignores_ids() -> None:
+	"""
+	Ignore volatile id and name attributes in slide hashes.
+	"""
+	xml_one = b"<slide id='1' name='Slide 1'><shape>Text</shape></slide>"
+	xml_two = b"<slide id='2' name='Slide 2'><shape>Text</shape></slide>"
+	first = csv_schema.compute_slide_hash(xml_one, "")
+	second = csv_schema.compute_slide_hash(xml_two, "")
+	assert first == second
+
+
+#============================================
 def test_text_hash_consistent() -> None:
 	"""
 	Ensure text hash is stable and sensitive to changes.

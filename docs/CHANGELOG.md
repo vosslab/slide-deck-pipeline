@@ -74,7 +74,7 @@
 
 ## 2026-01-21
 - Removed unused slide text extraction now that slide hashes derive from slide XML.
-- Switched slide XML normalization to defusedxml to satisfy Bandit checks.
+- Switched slide XML normalization to lxml with safe parsing and relationship hashing.
 - Centralized slide hash computation in slide_deck_pipeline/pptx_hash.py.
 - Updated test_script.sh to merge CSVs with a single header and stable sorting.
 - Dropped index warnings for slides with no text and hashed slides before body text extraction.
@@ -83,3 +83,6 @@
 - Normalized master_name in test_script.sh so all merged rows share one master.
 - Added status echo output to test_script.sh for each step.
 - Simplified test_script.sh sorting to a single SORT_NUMERIC column setting.
+- Added relationship-aware slide hashing to ignore volatile ids while keeping assets/layouts.
+- Added Brewfile and pip_requirements.txt dependency manifests.
+- Updated docs/INSTALL.md with dependency manifest instructions.

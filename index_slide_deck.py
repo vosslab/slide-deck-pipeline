@@ -59,6 +59,7 @@ def main() -> None:
 		base_name = os.path.splitext(args.input_path)[0]
 		output_csv = f"{base_name}.csv"
 	index_slides_to_csv(args.input_path, output_csv)
+	print(f"Wrote output: {output_csv}")
 
 
 if __name__ == "__main__":

@@ -58,6 +58,7 @@ def main() -> None:
 	)
 	print(f"Pictures inspected: {total}")
 	print(f"Pictures adjusted: {adjusted}")
+	print(f"Wrote output: {output_path}")
 
 
 if __name__ == "__main__":

@@ -136,3 +136,7 @@
 - Added shared text editing, text export, rebuild, and indexing helper modules.
 - Added a shared CSV validation module and thin CLI wrapper.
 - Reduced root CLI scripts to thin entrypoints that call library code.
+- Added a text edit pipeline guide for export/apply workflows.
+- Added a text-to-slides pipeline guide for Markdown and YAML rendering.
+- Added a multiple-choice slides pipeline guide for quiz text decks.
+- Refocused README on the four pipelines with guide and plan links.

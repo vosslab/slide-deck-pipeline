@@ -11,6 +11,7 @@ CLI scripts can run, plus LibreOffice if you plan to convert ODP files.
 ## Install steps
 - Clone the repo.
 - Install Python dependencies with `pip install -r pip_requirements.txt`.
+- Install developer dependencies with `pip install -r pip_requirements-dev.txt`.
 - Install Homebrew dependencies with `brew bundle`.
 
 ## Verify install

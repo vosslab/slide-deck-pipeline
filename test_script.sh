@@ -59,7 +59,8 @@ awk -F, -v OFS="," -v col="$master_col" -v master="$master_name" '
 		print
 	}
 ' merged.csv > merged.csv.tmp
-mv merged.csv.tmp merged.csv
+
+cat merged.csv.tmp | grep -v 'image,,,' > merged.csv
 
 echo "Rebuilding super.pptx from merged.csv"
 "$PYTHON" rebuild_slides.py -i merged.csv -o super.pptx

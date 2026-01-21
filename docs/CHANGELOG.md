@@ -86,3 +86,4 @@
 - Added relationship-aware slide hashing to ignore volatile ids while keeping assets/layouts.
 - Added Brewfile and pip_requirements.txt dependency manifests.
 - Updated docs/INSTALL.md with dependency manifest instructions.
+- Added pip_requirements-dev.txt for test tooling dependencies.

@@ -203,6 +203,82 @@ Overflow policy:
   likely overflow using simple heuristics (line count and long lines).
 - Optional strict mode may truncate with a visible marker.
 
+## Image insertion spec (v1)
+Scope:
+- Support image insertion by file path.
+- Use the python-pptx default behavior for inserting images into picture
+  placeholders.
+- Images are only supported for layout_type values that include predefined
+  picture placeholders in the 12 supported layouts.
+- Do not support explicit fit modes in v1. The tool relies on python-pptx
+  defaults. If the default behaves like cover, the tool uses cover. If the
+  default changes, the tool follows that behavior.
+
+YAML fields:
+Single image:
+```yaml
+image: fig01.png
+```
+
+Multiple images (placed in order):
+```yaml
+images:
+  - fig01.png
+  - fig02.jpg
+```
+
+Image file resolution:
+- If an image path is absolute, use it directly.
+- If an image path is relative, resolve it using a deterministic search order.
+
+Search order for a relative image filename `name.ext`:
+1. Current working directory (CWD)
+2. CWD parent directory (`CWD/..`)
+3. Immediate subdirectories of CWD (`CWD/*/`)
+4. YAML input file directory (`input_file_dir/`)
+5. Parent of YAML input file directory (`input_file_dir/..`)
+6. Immediate subdirectories of YAML input file directory (`input_file_dir/*/`)
+
+Rules:
+- Stop at the first match.
+- If multiple matches are found at the same search level, treat as ambiguous:
+  - strict mode: error
+  - default mode: warn and pick the first match in sorted path order
+- Do not recurse beyond one directory level for subdirectory checks.
+
+Placement rule:
+- For the selected layout_type, locate the predefined picture placeholders for
+  that layout.
+- Assign images to picture placeholders in placeholder order.
+- If both `image` and `images` are present, error in strict mode, otherwise
+  prefer `images`.
+
+Rendering rule (python-pptx default):
+- For each assigned image, call `placeholder.insert_picture(resolved_path)`.
+- The tool does not attempt to modify cropping or scaling beyond what
+  python-pptx applies by default.
+
+Validation:
+- If image or images are provided for a layout_type with zero picture
+  placeholders:
+  - strict mode: error
+  - default mode: warn and drop images
+- If more images are provided than picture placeholders for the selected
+  layout_type:
+  - strict mode: error
+  - default mode: warn and drop extras
+- If fewer images are provided than picture placeholders, leave remaining
+  placeholders empty.
+
+Reporting:
+- Report per slide: number of images placed, number dropped (if any), and the
+  resolved placeholder count for the selected layout_type.
+
+## Shared path resolution
+- The image path search order above should be reused as a shared helper across
+  tools when resolving relative PPTX and asset paths, to keep behavior
+  consistent and predictable.
+
 ## Validation
 Spec validation:
 - YAML schema version matches supported versions.

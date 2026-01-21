@@ -74,9 +74,9 @@ def test_read_slide_csv_skips_header_rows(tmp_path: pathlib.Path) -> None:
 	headers = ",".join(csv_schema.CSV_COLUMNS)
 	lines = [
 		headers,
-		"deck.pptx,1,deadbeefdeadbeef,Master,title_content,0.90,title_and_body,,Title,Body,Notes",
+		"deck.pptx,1,deadbeefdeadbeef,Master,title_content,,Title,Body,Notes",
 		headers,
-		"deck.pptx,2,feedfacefeedface,Master,title_content,0.90,title_and_body,,Title2,Body2,Notes2",
+		"deck.pptx,2,feedfacefeedface,Master,title_content,,Title2,Body2,Notes2",
 	]
 	csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 	rows = csv_schema.read_slide_csv(str(csv_path))
@@ -92,8 +92,8 @@ def test_read_slide_csv_without_header(tmp_path: pathlib.Path) -> None:
 	"""
 	csv_path = tmp_path / "no_header.csv"
 	lines = [
-		"deck.pptx,1,deadbeefdeadbeef,Master,title_content,0.90,title_and_body,,Title,Body,Notes",
-		"deck.pptx,2,feedfacefeedface,Master,title_content,0.90,title_and_body,,Title2,Body2,Notes2",
+		"deck.pptx,1,deadbeefdeadbeef,Master,title_content,,Title,Body,Notes",
+		"deck.pptx,2,feedfacefeedface,Master,title_content,,Title2,Body2,Notes2",
 	]
 	csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 	rows = csv_schema.read_slide_csv(str(csv_path))
@@ -110,9 +110,9 @@ def test_read_slide_csv_header_in_middle(tmp_path: pathlib.Path) -> None:
 	csv_path = tmp_path / "mid_header.csv"
 	headers = ",".join(csv_schema.CSV_COLUMNS)
 	lines = [
-		"deck.pptx,1,deadbeefdeadbeef,Master,title_content,0.90,title_and_body,,Title,Body,Notes",
+		"deck.pptx,1,deadbeefdeadbeef,Master,title_content,,Title,Body,Notes",
 		headers,
-		"deck.pptx,2,feedfacefeedface,Master,title_content,0.90,title_and_body,,Title2,Body2,Notes2",
+		"deck.pptx,2,feedfacefeedface,Master,title_content,,Title2,Body2,Notes2",
 	]
 	csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 	rows = csv_schema.read_slide_csv(str(csv_path))

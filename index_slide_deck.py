@@ -278,6 +278,27 @@ def report_index_warnings(
 
 
 #============================================
+def report_layout_confidence(confidences: dict[int, float]) -> None:
+	"""
+	Print summary statistics for layout classification confidence.
+
+	Args:
+		confidences: Mapping of slide index to confidence.
+	"""
+	if not confidences:
+		return
+	values = list(confidences.values())
+	average = sum(values) / len(values)
+	minimum = min(values)
+	maximum = max(values)
+	print(f"Layout confidence: avg {average:.2f}, min {minimum:.2f}, max {maximum:.2f}")
+	low_slides = [str(index) for index, value in confidences.items() if value < 0.6]
+	if low_slides:
+		joined = ", ".join(low_slides)
+		print(f"- Low confidence slides (<0.60): {joined}")
+
+
+#============================================
 def build_slide_row(
 	source_name: str,
 	slide_index: int,
@@ -287,8 +308,6 @@ def build_slide_row(
 	slide_hash: str,
 	master_name: str,
 	layout_type: str,
-	layout_confidence: float,
-	layout_reasons: str,
 	asset_types: str,
 ) -> dict[str, str]:
 	"""
@@ -299,13 +318,11 @@ def build_slide_row(
 		slide_index: 1-based slide index.
 		title_text: Title text.
 		body_text: Body text.
-	notes_text: Notes text.
-	slide_hash: Slide hash.
-	master_name: Template master name.
-	layout_type: Computed semantic layout type.
-	layout_confidence: Layout classification confidence.
-	layout_reasons: Layout classification reasons.
-	asset_types: Asset type summary.
+		notes_text: Notes text.
+		slide_hash: Slide hash.
+		master_name: Template master name.
+		layout_type: Computed semantic layout type.
+		asset_types: Asset type summary.
 
 	Returns:
 		dict[str, str]: CSV row.
@@ -316,8 +333,6 @@ def build_slide_row(
 		"slide_hash": slide_hash,
 		"master_name": master_name,
 		"layout_type": layout_type,
-		"layout_confidence": f"{layout_confidence:.2f}",
-		"layout_reasons": layout_reasons,
 		"asset_types": asset_types,
 		"title_text": title_text,
 		"body_text": body_text,
@@ -366,6 +381,7 @@ def index_rows(
 	rows = []
 	unsupported_shapes = {}
 	layout_errors = {}
+	layout_confidences = {}
 	for index, slide in enumerate(presentation.slides, 1):
 		title_text = ""
 		if slide.shapes.title and slide.shapes.title.text_frame:
@@ -377,7 +393,7 @@ def index_rows(
 		)
 		body_text = extract_body_text(slide)
 		asset_types = collect_asset_types(slide)
-		layout_type, layout_confidence, layout_reasons = (
+		layout_type, layout_confidence, _ = (
 			layout_classifier.classify_layout_type(
 				slide,
 				slide_width,
@@ -386,7 +402,7 @@ def index_rows(
 				body_text,
 			)
 		)
-		layout_reason_text = "; ".join(layout_reasons)
+		layout_confidences[index] = layout_confidence
 		master_name, layout_warning = resolve_master_name(slide)
 		if layout_warning:
 			layout_errors[index] = layout_warning
@@ -402,12 +418,11 @@ def index_rows(
 			slide_hash,
 			master_name,
 			layout_type,
-			layout_confidence,
-			layout_reason_text,
 			asset_types,
 		)
 		rows.append(row)
 	report_index_warnings(unsupported_shapes, layout_errors)
+	report_layout_confidence(layout_confidences)
 	return rows
 
 

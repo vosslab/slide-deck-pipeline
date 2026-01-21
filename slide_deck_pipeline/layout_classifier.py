@@ -150,6 +150,51 @@ def is_centered_box(
 
 
 #============================================
+def is_subtitle_like_body(
+	box: dict[str, object],
+	slide_width: int,
+	slide_height: int,
+	body_text: str,
+) -> bool:
+	"""
+	Check if a body placeholder looks subtitle-like.
+
+	Args:
+		box: Box metadata.
+		slide_width: Slide width in EMUs.
+		slide_height: Slide height in EMUs.
+		body_text: Body text content.
+
+	Returns:
+		bool: True if box and text look subtitle-like.
+	"""
+	text = (body_text or "").strip()
+	if not text:
+		return False
+	if "\t" in text:
+		return False
+	line_count = text.count("\n") + 1
+	if line_count > 2:
+		return False
+	if len(text) > 120:
+		return False
+	left = int(box["left"])
+	top = int(box["top"])
+	width = int(box["width"])
+	height = int(box["height"])
+	if slide_height <= 0 or slide_width <= 0:
+		return False
+	if height > slide_height * 0.25:
+		return False
+	if top > slide_height * 0.4:
+		return False
+	center_x = left + width / 2
+	if abs(center_x - slide_width / 2) > slide_width * 0.1:
+		return False
+	return True
+
+
+#============================================
 def classify_layout_type(
 	slide: pptx.slide.Slide,
 	slide_width: int,
@@ -182,8 +227,12 @@ def classify_layout_type(
 		return ("title_slide", 1.0, ["title_and_subtitle"])
 	if title_boxes and not subtitle_boxes and not body_boxes:
 		return ("title_only", 0.9, ["title_only"])
-	if title_boxes and len(body_boxes) == 1:
+	if title_boxes and len(body_boxes) == 1 and not subtitle_boxes:
+		if is_subtitle_like_body(body_boxes[0], slide_width, slide_height, body_text):
+			return ("title_slide", 0.5, ["title_and_body_subtitle_like"])
 		return ("title_content", 0.9, ["title_and_body"])
+	if title_boxes and len(body_boxes) == 1 and subtitle_boxes:
+		return ("custom", 0.4, ["title_body_and_subtitle"])
 	if title_boxes and len(body_boxes) == 2:
 		if is_two_content_split(body_boxes, slide_width):
 			return ("two_content", 0.9, ["two_body_split"])

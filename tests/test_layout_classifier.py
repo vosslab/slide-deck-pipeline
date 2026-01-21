@@ -128,6 +128,31 @@ def test_title_content_classification() -> None:
 
 
 #============================================
+def test_subtitle_like_body_classification() -> None:
+	"""
+	Treat short centered body text as subtitle-like with low confidence.
+	"""
+	title = resolve_placeholder("TITLE")
+	body = resolve_placeholder("BODY")
+	slide = make_slide(
+		[
+			FakeShape(title, 0, 0, 800, 100),
+			FakeShape(body, 200, 120, 400, 80),
+		]
+	)
+	layout, confidence, reasons = layout_classifier.classify_layout_type(
+		slide,
+		800,
+		600,
+		"Title",
+		"Short line",
+	)
+	assert layout == "title_slide"
+	assert confidence <= 0.6
+	assert "title_and_body_subtitle_like" in reasons
+
+
+#============================================
 def test_two_content_classification() -> None:
 	"""
 	Classify a title with two body placeholders split left-right.

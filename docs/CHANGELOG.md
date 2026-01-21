@@ -97,6 +97,10 @@
 - Added pytest coverage for layout classification.
 - Added layout confidence and reason metadata to layout classification output.
 - Removed layout_type_override and kept layout_type as the editable selector.
+- Dropped layout_confidence and layout_reasons from the CSV schema while keeping
+  a deck-level layout confidence summary during indexing.
+- Added a lecture merge guide covering CSV-driven sorting and rebuild steps.
+- Added docs/TEXT_TO_SLIDES_PLAN.md describing the text-to-slides pipeline plan.
 - Reworked slide hashing to use ordered shape tokens, geometry, text hashes, and
   image blobs plus notes text for stable structural hashes.
 - Added slide hash tests that cover shape order changes and picture changes.

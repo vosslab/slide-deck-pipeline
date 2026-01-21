@@ -183,7 +183,7 @@ def load_template_layout_types(template_path: str) -> set[tuple[str, str]]:
 	slide_height = int(getattr(presentation, "slide_height", 0) or 0)
 	available = set()
 	for layout in presentation.slide_layouts:
-		layout_type = layout_classifier.classify_layout_type(
+		layout_type, _, _ = layout_classifier.classify_layout_type(
 			layout,
 			slide_width,
 			slide_height,

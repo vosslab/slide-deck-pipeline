@@ -96,3 +96,4 @@
 - Replaced layout_name with layout_type in the CSV and rebuild selection logic.
 - Added pytest coverage for layout classification.
 - Added layout confidence and reason metadata to layout classification output.
+- Removed layout_type_override and kept layout_type as the editable selector.

@@ -288,6 +288,8 @@ Spec validation:
 - Required fields exist per layout_type.
 
 Template validation:
+Applies only when `template_deck` is provided.
+
 - Template deck loads successfully.
 - Required layouts exist for the selected `master_name`.
 - Required placeholders exist in each mapped layout.
@@ -322,6 +324,8 @@ Markdown constraints:
   - `# Title Content`
   - `# Centered Text`
   - `# Blank`
+- The first `#` line is the slide type directive. The next `#` line (if
+  present) is the slide title.
 - Within a slide:
   - Next `#` line is title.
   - `##` line is subtitle.

@@ -111,6 +111,8 @@
 - Added a layout_type placeholder count table for the text-to-slides schema.
 - Added an image insertion spec and shared path resolution rules to the
   text-to-slides plan.
+- Clarified Markdown type line parsing and conditional template validation for
+  text-to-slides.
 - Reworked slide hashing to use ordered shape tokens, geometry, text hashes, and
   image blobs plus notes text for stable structural hashes.
 - Added slide hash tests that cover shape order changes and picture changes.

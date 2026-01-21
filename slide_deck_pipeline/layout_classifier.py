@@ -22,12 +22,17 @@ def classify_placeholder_role(placeholder_type) -> str | None:
 		return "title"
 	if placeholder_type == placeholders.SUBTITLE:
 		return "subtitle"
-	if placeholder_type in (
+	body_types = [
 		placeholders.BODY,
 		placeholders.OBJECT,
-		placeholders.CONTENT,
-		placeholders.TEXT,
-	):
+	]
+	content_type = getattr(placeholders, "CONTENT", None)
+	if content_type is not None:
+		body_types.append(content_type)
+	text_type = getattr(placeholders, "TEXT", None)
+	if text_type is not None:
+		body_types.append(text_type)
+	if placeholder_type in tuple(body_types):
 		return "body"
 	return None
 

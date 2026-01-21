@@ -92,3 +92,4 @@
 - Allowed header rows anywhere in CSV inputs and ignore them during parsing.
 - Normalized relationship payloads with XML normalization and added tests.
 - Added layout_type column and layout classifier helper module.
+- Guarded layout classifier placeholder enums for compatibility.

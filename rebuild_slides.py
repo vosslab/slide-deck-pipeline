@@ -85,7 +85,7 @@ def build_layout_map(
 	slide_height = int(getattr(presentation, "slide_height", 0) or 0)
 	layout_map: dict[str, dict[str, pptx.slide.SlideLayout]] = {}
 	for layout in presentation.slide_layouts:
-		layout_type = layout_classifier.classify_layout_type(
+		layout_type, _, _ = layout_classifier.classify_layout_type(
 			layout,
 			slide_width,
 			slide_height,

@@ -10,12 +10,14 @@ CSV_COLUMNS = [
 	"slide_hash",
 	"master_name",
 	"layout_type",
+	"layout_confidence",
+	"layout_reasons",
 	"asset_types",
 	"title_text",
 	"body_text",
 	"notes_text",
 ]
-CONTEXT_COLUMNS = ("title_text", "body_text", "notes_text")
+CONTEXT_COLUMNS = ("layout_reasons", "title_text", "body_text", "notes_text")
 XML_PARSER = xml_et.XMLParser(resolve_entities=False, no_network=True, recover=False)
 
 

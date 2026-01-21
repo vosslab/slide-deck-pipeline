@@ -4,8 +4,8 @@ Use the root scripts to index slides to CSV, merge CSVs externally, and
 rebuild a new PPTX or ODP from the merged CSV and original source files.
 The CSV is only a slide ordering and selection surface; text edits use YAML
 patch files.
-CSV context fields (asset_types/title/body/notes) are for context only and are
-not editable.
+CSV context fields (layout_confidence/layout_reasons/asset_types/title/body/notes)
+are for context only and are not editable.
 The editable layout controls are `master_name` and `layout_type`.
 
 ## Quick start

@@ -287,6 +287,8 @@ def build_slide_row(
 	slide_hash: str,
 	master_name: str,
 	layout_type: str,
+	layout_confidence: float,
+	layout_reasons: str,
 	asset_types: str,
 ) -> dict[str, str]:
 	"""
@@ -301,6 +303,8 @@ def build_slide_row(
 	slide_hash: Slide hash.
 	master_name: Template master name.
 	layout_type: Computed semantic layout type.
+	layout_confidence: Layout classification confidence.
+	layout_reasons: Layout classification reasons.
 	asset_types: Asset type summary.
 
 	Returns:
@@ -312,6 +316,8 @@ def build_slide_row(
 		"slide_hash": slide_hash,
 		"master_name": master_name,
 		"layout_type": layout_type,
+		"layout_confidence": f"{layout_confidence:.2f}",
+		"layout_reasons": layout_reasons,
 		"asset_types": asset_types,
 		"title_text": title_text,
 		"body_text": body_text,
@@ -371,13 +377,16 @@ def index_rows(
 		)
 		body_text = extract_body_text(slide)
 		asset_types = collect_asset_types(slide)
-		layout_type = layout_classifier.classify_layout_type(
-			slide,
-			slide_width,
-			slide_height,
-			title_text,
-			body_text,
+		layout_type, layout_confidence, layout_reasons = (
+			layout_classifier.classify_layout_type(
+				slide,
+				slide_width,
+				slide_height,
+				title_text,
+				body_text,
+			)
 		)
+		layout_reason_text = "; ".join(layout_reasons)
 		master_name, layout_warning = resolve_master_name(slide)
 		if layout_warning:
 			layout_errors[index] = layout_warning
@@ -393,6 +402,8 @@ def index_rows(
 			slide_hash,
 			master_name,
 			layout_type,
+			layout_confidence,
+			layout_reason_text,
 			asset_types,
 		)
 		rows.append(row)

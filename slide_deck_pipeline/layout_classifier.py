@@ -156,7 +156,7 @@ def classify_layout_type(
 	slide_height: int,
 	title_text: str,
 	body_text: str,
-) -> str:
+) -> tuple[str, float, list[str]]:
 	"""
 	Classify a slide into a semantic layout type.
 
@@ -168,27 +168,27 @@ def classify_layout_type(
 		body_text: Body text.
 
 	Returns:
-		str: Semantic layout type.
+		tuple[str, float, list[str]]: Layout type, confidence, reasons.
 	"""
 	placeholders = collect_placeholder_boxes(slide)
 	if not placeholders:
 		if title_text or body_text:
-			return "custom"
-		return "blank"
+			return ("custom", 0.2, ["text_without_placeholders"])
+		return ("blank", 1.0, ["no_placeholders_no_text"])
 	title_boxes = [box for box in placeholders if box["role"] == "title"]
 	subtitle_boxes = [box for box in placeholders if box["role"] == "subtitle"]
 	body_boxes = [box for box in placeholders if box["role"] == "body"]
 	if title_boxes and subtitle_boxes and not body_boxes:
-		return "title_slide"
+		return ("title_slide", 1.0, ["title_and_subtitle"])
 	if title_boxes and not subtitle_boxes and not body_boxes:
-		return "title_only"
+		return ("title_only", 0.9, ["title_only"])
 	if title_boxes and len(body_boxes) == 1:
-		return "title_content"
+		return ("title_content", 0.9, ["title_and_body"])
 	if title_boxes and len(body_boxes) == 2:
 		if is_two_content_split(body_boxes, slide_width):
-			return "two_content"
-		return "title_content"
+			return ("two_content", 0.9, ["two_body_split"])
+		return ("custom", 0.4, ["two_body_not_split"])
 	if not title_boxes and len(body_boxes) == 1:
 		if is_centered_box(body_boxes[0], slide_width, slide_height):
-			return "centered_text"
-	return "custom"
+			return ("centered_text", 0.8, ["centered_body"])
+	return ("custom", 0.2, ["unclassified"])

@@ -56,6 +56,8 @@
 - `slide_hash`: content fingerprint for the slide.
 - `master_name`: editable target template master name.
 - `layout_type`: editable semantic layout type.
+- `layout_confidence`: computed layout classification confidence.
+- `layout_reasons`: computed layout classification reasons.
 - `asset_types`: context only; not editable in the CSV.
 - `title_text`: context only; not editable in the CSV.
 - `body_text`: context only; not editable in the CSV.

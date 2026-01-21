@@ -44,10 +44,13 @@ Defaults: `input.pptx` -> `input.csv`, `merged.csv` -> `merged.pptx`.
   - `-n`, `--include-notes`: include speaker notes blocks.
   - `-s`, `--include-subtitle`: include subtitle placeholders.
   - `-f`, `--include-footer`: include footer placeholders.
-- Apply text script: [apply_text_edits.py](apply_text_edits.py)
+- Aspect fixer script: [aspect_fixer.py](aspect_fixer.py)
   - `-i`, `--input`: input PPTX or ODP path.
-  - `-p`, `--patches`: YAML patch file.
-  - `-o`, `--output`: output PPTX or ODP path (defaults to `<input>_edited.pptx`).
+  - `-o`, `--output`: output PPTX or ODP path.
+  - `--inplace`: allow writing to the input file.
+- Apply text script: [apply_text_edits.py](apply_text_edits.py)
+  - `-i`, `--input`: YAML patch file.
+  - `-o`, `--output`: output PPTX or ODP path (defaults to `<patch>_edited.pptx`).
   - `--inplace`: allow writing edits to the input file.
   - `-f`, `--force`: apply edits even if text hashes mismatch.
   - `-s`, `--include-subtitle`: include subtitle placeholders in matching.
@@ -75,11 +78,11 @@ python3 export_slide_text.py -i merged.pptx -n
 ```
 
 ```bash
-python3 apply_text_edits.py -i merged.pptx -p merged_text_edits.yaml
+python3 apply_text_edits.py -i merged_text_edits.yaml
 ```
 
 ```bash
-python3 apply_text_edits.py -i merged_text_edits.yaml
+python3 aspect_fixer.py -i merged.pptx -o merged_aspect_fixed.pptx
 ```
 
 ## Inputs and outputs

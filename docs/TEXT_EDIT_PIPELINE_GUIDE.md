@@ -65,17 +65,11 @@ Notes:
 ## Step 3: Apply the edits
 ```bash
 /opt/homebrew/opt/python@3.12/bin/python3.12 apply_text_edits.py \
-  -i lecture.pptx \
-  -p lecture_text_edits.yaml \
-  -o lecture_edited.pptx
-```
-
-If the patch file `source_pptx` matches a local file, you can also run:
-
-```bash
-/opt/homebrew/opt/python@3.12/bin/python3.12 apply_text_edits.py \
   -i lecture_text_edits.yaml
 ```
+
+The patch file must include `source_pptx`, which is used to locate the input
+deck with the shared path resolver.
 
 Optional flags:
 - `-f`, `--force` to apply edits even if text hashes mismatch.

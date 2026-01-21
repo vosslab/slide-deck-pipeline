@@ -24,12 +24,17 @@
   text-to-slides rendering helpers.
 - [slide_deck_pipeline/mc_to_slides.py](slide_deck_pipeline/mc_to_slides.py):
   quiz slide rendering helpers.
+- [slide_deck_pipeline/aspect_fixer.py](slide_deck_pipeline/aspect_fixer.py):
+  picture aspect ratio fixer helpers.
+- [slide_deck_pipeline/image_utils.py](slide_deck_pipeline/image_utils.py):
+  picture sizing and fitting helpers.
 - [index_slide_deck.py](index_slide_deck.py): index slides to CSV.
 - [merge_index_csv_files.py](merge_index_csv_files.py): merge slide index CSVs.
 - [rebuild_slides.py](rebuild_slides.py): rebuild slides from merged CSV.
 - [validate_csv.py](validate_csv.py): validate merged CSVs and source references.
 - [export_slide_text.py](export_slide_text.py): export text edit patches.
 - [apply_text_edits.py](apply_text_edits.py): apply text edit patches.
+- [aspect_fixer.py](aspect_fixer.py): fix picture aspect ratios in PPTX or ODP.
 - [md_to_slides_yaml.py](md_to_slides_yaml.py): convert Markdown to YAML specs.
 - [text_to_slides.py](text_to_slides.py): render PPTX from YAML specs.
 - [mc_to_slides.py](mc_to_slides.py): render quiz decks from text files.

@@ -16,6 +16,7 @@ import slide_deck_pipeline.path_resolver as path_resolver
 import slide_deck_pipeline.pptx_hash as pptx_hash
 import slide_deck_pipeline.soffice_tools as soffice_tools
 import slide_deck_pipeline.text_normalization as text_normalization
+import slide_deck_pipeline.image_utils as image_utils
 
 
 #============================================
@@ -249,12 +250,19 @@ def place_images_grid(slide: pptx.slide.Slide, image_blobs: list[bytes]) -> None
 		left = margin + (cell_width + margin) * col
 		top = margin + (cell_height + margin) * row
 		stream = io.BytesIO(blob)
-		slide.shapes.add_picture(
+		picture = slide.shapes.add_picture(
 			stream,
 			left,
 			top,
 			width=cell_width,
 			height=cell_height,
+		)
+		image_utils.fit_picture_shape(
+			picture,
+			int(left),
+			int(top),
+			int(cell_width),
+			int(cell_height),
 		)
 
 
@@ -270,14 +278,32 @@ def insert_images(slide: pptx.slide.Slide, image_blobs: list[bytes]) -> None:
 	if not image_blobs:
 		return
 	picture_placeholders = []
+	placeholder_enum = pptx.enum.shapes.PP_PLACEHOLDER
+	picture_types = [placeholder_enum.PICTURE]
+	for attr_name in ("OBJECT", "CONTENT"):
+		candidate = getattr(placeholder_enum, attr_name, None)
+		if candidate is not None:
+			picture_types.append(candidate)
 	for shape in slide.shapes:
 		if not shape.is_placeholder:
 			continue
-		if shape.placeholder_format.type == pptx.enum.shapes.PP_PLACEHOLDER.PICTURE:
+		if shape.placeholder_format.type in tuple(picture_types):
 			picture_placeholders.append(shape)
 	if len(image_blobs) == 1 and picture_placeholders:
 		stream = io.BytesIO(image_blobs[0])
-		picture_placeholders[0].insert_picture(stream)
+		placeholder = picture_placeholders[0]
+		picture = placeholder.insert_picture(stream)
+		if all(
+			hasattr(placeholder, attr)
+			for attr in ("left", "top", "width", "height")
+		):
+			image_utils.fit_picture_shape(
+				picture,
+				int(placeholder.left),
+				int(placeholder.top),
+				int(placeholder.width),
+				int(placeholder.height),
+			)
 		return
 	place_images_grid(slide, image_blobs)
 

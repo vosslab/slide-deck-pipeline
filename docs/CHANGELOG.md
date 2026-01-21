@@ -146,3 +146,7 @@
 - Treat object/content/text placeholders as body text boxes in export/apply.
 - Allowed apply_text_edits.py to infer input decks from YAML patches.
 - Defaulted apply_text_edits.py to prevent in-place edits without --inplace.
+- Added aspect_fixer.py to restore image aspect ratios in PPTX or ODP files.
+- Preserve image aspect ratios during rebuild image placement.
+- Simplified apply_text_edits.py to accept only YAML patch inputs.
+- Reported apply_text_edits.py output path in CLI.

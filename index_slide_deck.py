@@ -10,6 +10,7 @@ import pptx.enum.shapes
 
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
+import slide_deck_pipeline.pptx_hash as pptx_hash
 import slide_deck_pipeline.pptx_text as pptx_text
 import slide_deck_pipeline.soffice_tools as soffice_tools
 
@@ -105,20 +106,6 @@ def extract_notes_text(slide: pptx.slide.Slide) -> str:
 		str: Notes text.
 	"""
 	return pptx_text.extract_notes_text(slide)
-
-
-#============================================
-def extract_slide_text(slide: pptx.slide.Slide) -> str:
-	"""
-	Extract all on-slide text for hashing.
-
-	Args:
-		slide: Slide instance.
-
-	Returns:
-		str: Slide text.
-	"""
-	return pptx_text.extract_slide_text(slide)
 
 
 #============================================
@@ -244,27 +231,50 @@ def collect_unsupported_shapes(slide: pptx.slide.Slide) -> list[str]:
 
 
 #============================================
+def resolve_layout_names(slide: pptx.slide.Slide) -> tuple[str, str, str | None]:
+	"""
+	Resolve master and layout names for a slide.
+
+	Args:
+		slide: Slide instance.
+
+	Returns:
+		tuple[str, str, str | None]: master name, layout name, warning text.
+	"""
+	try:
+		layout = slide.slide_layout
+	except Exception as exc:
+		message = f"layout lookup failed: {exc}"
+		return ("custom", "custom", message)
+	layout_name = layout.name or "custom"
+	master_name = "custom"
+	slide_master = getattr(layout, "slide_master", None)
+	if slide_master and getattr(slide_master, "name", ""):
+		master_name = slide_master.name
+	return (master_name, layout_name, None)
+
+
+#============================================
 def report_index_warnings(
-	missing_text_slides: list[int],
 	unsupported_shapes: dict[int, list[str]],
+	layout_errors: dict[int, str],
 ) -> None:
 	"""
 	Print a simple indexing warning report.
 
 	Args:
-		missing_text_slides: Slide indices missing all text.
 		unsupported_shapes: Slide indices with unsupported shapes.
 	"""
-	if not missing_text_slides and not unsupported_shapes:
+	if not unsupported_shapes and not layout_errors:
 		return
 	print("Index warnings:")
-	if missing_text_slides:
-		listed = ", ".join(str(idx) for idx in missing_text_slides)
-		print(f"- Slides with no text: {listed}")
 	if unsupported_shapes:
 		for slide_index, shapes in sorted(unsupported_shapes.items()):
 			joined = ", ".join(shapes)
 			print(f"- Slide {slide_index} unsupported shapes: {joined}")
+	if layout_errors:
+		for slide_index, message in sorted(layout_errors.items()):
+			print(f"- Slide {slide_index} layout warning: {message}")
 
 
 #============================================
@@ -274,7 +284,7 @@ def build_slide_row(
 	title_text: str,
 	body_text: str,
 	notes_text: str,
-	slide_text: str,
+	slide_hash: str,
 	master_name: str,
 	layout_name: str,
 	asset_types: str,
@@ -287,15 +297,15 @@ def build_slide_row(
 		slide_index: 1-based slide index.
 		title_text: Title text.
 		body_text: Body text.
-		notes_text: Notes text.
-		master_name: Template master name.
-		layout_name: Template layout name.
-		asset_types: Asset type summary.
+	notes_text: Notes text.
+	slide_hash: Slide hash.
+	master_name: Template master name.
+	layout_name: Template layout name.
+	asset_types: Asset type summary.
 
 	Returns:
 		dict[str, str]: CSV row.
 	"""
-	slide_hash = csv_schema.compute_slide_hash(slide_text, notes_text)
 	return {
 		"source_pptx": source_name,
 		"source_slide_index": str(slide_index),
@@ -346,39 +356,38 @@ def index_rows(
 	"""
 	presentation = pptx.Presentation(pptx_path)
 	rows = []
-	missing_text_slides = []
 	unsupported_shapes = {}
+	layout_errors = {}
 	for index, slide in enumerate(presentation.slides, 1):
 		title_text = ""
 		if slide.shapes.title and slide.shapes.title.text_frame:
 			title_text = slide.shapes.title.text_frame.text or ""
-		body_text = extract_body_text(slide)
 		notes_text = extract_notes_text(slide)
-		slide_text = extract_slide_text(slide)
+		slide_hash, _, _ = pptx_hash.compute_slide_hash_from_slide(
+			slide,
+			notes_text,
+		)
+		body_text = extract_body_text(slide)
 		asset_types = collect_asset_types(slide)
-		layout_name = slide.slide_layout.name or "custom"
-		master_name = "custom"
-		slide_master = getattr(slide.slide_layout, "slide_master", None)
-		if slide_master and getattr(slide_master, "name", ""):
-			master_name = slide_master.name
+		master_name, layout_name, layout_warning = resolve_layout_names(slide)
+		if layout_warning:
+			layout_errors[index] = layout_warning
 		unsupported = collect_unsupported_shapes(slide)
 		if unsupported:
 			unsupported_shapes[index] = unsupported
-		if not title_text and not body_text and not notes_text:
-			missing_text_slides.append(index)
 		row = build_slide_row(
 			source_name,
 			index,
 			title_text,
 			body_text,
 			notes_text,
-			slide_text,
+			slide_hash,
 			master_name,
 			layout_name,
 			asset_types,
 		)
 		rows.append(row)
-	report_index_warnings(missing_text_slides, unsupported_shapes)
+	report_index_warnings(unsupported_shapes, layout_errors)
 	return rows
 
 

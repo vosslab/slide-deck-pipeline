@@ -10,6 +10,7 @@ import yaml
 
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
+import slide_deck_pipeline.pptx_hash as pptx_hash
 import slide_deck_pipeline.pptx_text as pptx_text
 import slide_deck_pipeline.text_boxes as text_boxes
 import slide_deck_pipeline.soffice_tools as soffice_tools
@@ -205,9 +206,11 @@ def write_yaml(
 	fallback_slides = []
 	box_count = 0
 	for index, slide in enumerate(presentation.slides, 1):
-		slide_text = pptx_text.extract_slide_text(slide)
 		notes_text = pptx_text.extract_notes_text(slide)
-		slide_hash = csv_schema.compute_slide_hash(slide_text, notes_text)
+		slide_hash, _, _ = pptx_hash.compute_slide_hash_from_slide(
+			slide,
+			notes_text,
+		)
 		boxes, used_fallback = text_boxes.collect_text_boxes(
 			slide,
 			include_subtitle,

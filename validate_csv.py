@@ -223,13 +223,13 @@ def validate_rows(
 	source_cache: dict[str, object] = {}
 	temp_dirs: list[tempfile.TemporaryDirectory] = []
 	pptx_module = None
-	pptx_text_module = None
+	pptx_hash_module = None
 	if strict:
 		# PIP3 modules
 		import pptx as pptx_module
 
 		# local repo modules
-		import slide_deck_pipeline.pptx_text as pptx_text_module
+		import slide_deck_pipeline.pptx_hash as pptx_hash_module
 	for index, row in enumerate(rows, 1):
 		source_pptx = normalize_row_value(row, "source_pptx")
 		if not source_pptx:
@@ -285,9 +285,9 @@ def validate_rows(
 				)
 				continue
 			source_slide = source_presentation.slides[slide_number - 1]
-			slide_text = pptx_text_module.extract_slide_text(source_slide)
-			notes_text = pptx_text_module.extract_notes_text(source_slide)
-			computed_hash = csv_schema.compute_slide_hash(slide_text, notes_text)
+			computed_hash, _, _ = pptx_hash_module.compute_slide_hash_from_slide(
+				source_slide
+			)
 			if computed_hash != slide_hash:
 				errors.append(f"Row {index}: slide_hash mismatch.")
 

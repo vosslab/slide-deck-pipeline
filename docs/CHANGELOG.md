@@ -65,3 +65,21 @@
 - Centralized soffice conversion helpers in slide_deck_pipeline/soffice_tools.py.
 - Added --headless, --norestore, and --safe-mode flags to soffice conversions.
 - Added a small pipeline smoke test that builds, indexes, merges, and rebuilds PPTX files.
+- Fixed rebuild slide dimension lookup to support python-pptx slide parts without presentation attributes.
+- Added a test_script.sh helper to index PPTX files, merge CSVs, and rebuild a combined deck.
+- Added a layout-name fallback when slide layouts have multiple relationships.
+- Sanitized CSV context fields to strip commas, tabs, newlines, and non-ascii characters.
+- Skipped repeated header rows when reading merged CSVs.
+- Updated slide hashes to use slide XML plus notes text instead of image hashes.
+
+## 2026-01-21
+- Removed unused slide text extraction now that slide hashes derive from slide XML.
+- Switched slide XML normalization to defusedxml to satisfy Bandit checks.
+- Centralized slide hash computation in slide_deck_pipeline/pptx_hash.py.
+- Updated test_script.sh to merge CSVs with a single header and stable sorting.
+- Dropped index warnings for slides with no text and hashed slides before body text extraction.
+- Added configurable sort column and numeric toggle to test_script.sh.
+- Added pytest coverage for slide hash stability and indexing order.
+- Normalized master_name in test_script.sh so all merged rows share one master.
+- Added status echo output to test_script.sh for each step.
+- Simplified test_script.sh sorting to a single SORT_NUMERIC column setting.

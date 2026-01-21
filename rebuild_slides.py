@@ -13,7 +13,7 @@ import pptx.util
 
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
-import slide_deck_pipeline.pptx_text as pptx_text
+import slide_deck_pipeline.pptx_hash as pptx_hash
 import slide_deck_pipeline.soffice_tools as soffice_tools
 
 
@@ -280,8 +280,7 @@ def place_images_grid(slide: pptx.slide.Slide, image_blobs: list[bytes]) -> None
 		cols = 2
 	rows = int(math.ceil(len(image_blobs) / cols))
 	margin = pptx.util.Inches(0.5)
-	slide_width = slide.part.presentation.slide_width
-	slide_height = slide.part.presentation.slide_height
+	slide_width, slide_height = get_slide_dimensions(slide)
 	cell_width = (slide_width - (margin * (cols + 1))) // cols
 	cell_height = (slide_height - (margin * (rows + 1))) // rows
 	for index, blob in enumerate(image_blobs):
@@ -321,6 +320,28 @@ def insert_images(slide: pptx.slide.Slide, image_blobs: list[bytes]) -> None:
 		picture_placeholders[0].insert_picture(stream)
 		return
 	place_images_grid(slide, image_blobs)
+
+
+#============================================
+def get_slide_dimensions(slide: pptx.slide.Slide) -> tuple[int, int]:
+	"""
+	Return slide width and height.
+
+	Args:
+		slide: Slide instance.
+
+	Returns:
+		tuple[int, int]: Slide width and height.
+	"""
+	presentation = None
+	if hasattr(slide.part, "presentation"):
+		presentation = slide.part.presentation
+	elif hasattr(slide.part, "package"):
+		presentation_part = slide.part.package.presentation_part
+		presentation = presentation_part.presentation
+	if not presentation:
+		raise ValueError("Unable to resolve presentation dimensions.")
+	return (presentation.slide_width, presentation.slide_height)
 
 
 #============================================
@@ -366,9 +387,7 @@ def rebuild_from_csv(
 				f"Source slide index out of range: {source_pptx} {slide_index}."
 			)
 		source_slide = source_presentation.slides[slide_index - 1]
-		slide_text = pptx_text.extract_slide_text(source_slide)
-		notes_text = pptx_text.extract_notes_text(source_slide)
-		computed_hash = csv_schema.compute_slide_hash(slide_text, notes_text)
+		computed_hash, _, _ = pptx_hash.compute_slide_hash_from_slide(source_slide)
 		row_hash = row.get("slide_hash", "")
 		if not row_hash:
 			raise ValueError(f"Row {row_index}: slide_hash is missing.")

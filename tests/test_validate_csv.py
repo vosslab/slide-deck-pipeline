@@ -31,7 +31,7 @@ def test_validate_rows_ok() -> None:
 	"""
 	Accept valid rows when hashing is not enforced.
 	"""
-	slide_hash = csv_schema.compute_slide_hash("Title\nBody", "")
+	slide_hash = csv_schema.compute_slide_hash(b"<slide>Title</slide>", "")
 	row = build_row(
 		slide_hash=slide_hash,
 	)
@@ -52,7 +52,7 @@ def test_validate_rows_missing_layout() -> None:
 	"""
 	Detect missing layout_name values.
 	"""
-	slide_hash = csv_schema.compute_slide_hash("Title\nBody", "")
+	slide_hash = csv_schema.compute_slide_hash(b"<slide>Title</slide>", "")
 	rows = [build_row(slide_hash, layout_name="")]
 	errors, warnings = validate_csv.validate_rows(
 		rows,
@@ -87,7 +87,7 @@ def test_validate_rows_bad_slide_index() -> None:
 	"""
 	Detect invalid slide indices.
 	"""
-	slide_hash = csv_schema.compute_slide_hash("Title\nBody", "")
+	slide_hash = csv_schema.compute_slide_hash(b"<slide>Title</slide>", "")
 	rows = [build_row(slide_hash, source_slide_index="zero")]
 	errors, warnings = validate_csv.validate_rows(
 		rows,

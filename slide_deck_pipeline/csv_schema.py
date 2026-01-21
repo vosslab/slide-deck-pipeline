@@ -1,6 +1,7 @@
 import csv
 import hashlib
 import os
+import lxml.etree as xml_et
 
 
 CSV_COLUMNS = [
@@ -14,6 +15,8 @@ CSV_COLUMNS = [
 	"body_text",
 	"notes_text",
 ]
+CONTEXT_COLUMNS = ("title_text", "body_text", "notes_text")
+XML_PARSER = xml_et.XMLParser(resolve_entities=False, no_network=True, recover=False)
 
 
 #============================================
@@ -44,30 +47,119 @@ def normalize_text(text: str | None) -> str:
 
 
 #============================================
+def sanitize_context_text(text: str | None) -> str:
+	"""
+	Sanitize context text for CSV output.
+
+	Args:
+		text: Input text or None.
+
+	Returns:
+		str: Sanitized text.
+	"""
+	if not text:
+		return ""
+	ascii_only = "".join(ch for ch in text if ord(ch) < 128)
+	for ch in (",", "\t", "\n", "\r"):
+		ascii_only = ascii_only.replace(ch, " ")
+	return " ".join(ascii_only.split())
+
+
+#============================================
 def compute_slide_hash(
-	slide_text: str,
+	slide_xml: bytes,
 	notes_text: str = "",
+	rel_hashes: dict[str, str] | None = None,
+	rel_tokens: list[tuple[str, str]] | None = None,
 ) -> str:
 	"""
 	Compute a stable slide hash from slide content.
 
 	Args:
-		slide_text: Full slide text content.
+		slide_xml: Slide XML bytes.
 		notes_text: Speaker notes text.
 
 	Returns:
 		str: Slide hash.
 	"""
-	normalized_text = normalize_text(slide_text)
 	normalized_notes = normalize_text(notes_text)
-	if normalized_text and normalized_notes:
-		payload = f"{normalized_text}\n{normalized_notes}"
-	elif normalized_text:
-		payload = normalized_text
-	else:
-		payload = normalized_notes
-	digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+	if not isinstance(slide_xml, (bytes, bytearray)):
+		raise TypeError("slide_xml must be bytes.")
+	payload = normalize_slide_xml(bytes(slide_xml), rel_hashes)
+	if rel_tokens:
+		payload += b"\n--rels--\n" + repr(tuple(rel_tokens)).encode("utf-8")
+	if normalized_notes:
+		payload += b"\n--notes--\n" + normalized_notes.encode("utf-8")
+	digest = hashlib.sha256(payload).hexdigest()
 	return digest[:16]
+
+
+#============================================
+def normalize_slide_xml(
+	slide_xml: bytes,
+	rel_hashes: dict[str, str] | None = None,
+) -> bytes:
+	"""
+	Normalize slide XML into a stable signature.
+
+	Args:
+		slide_xml: Slide XML bytes.
+
+	Returns:
+		bytes: Normalized XML signature bytes.
+	"""
+	try:
+		root = xml_et.fromstring(slide_xml, parser=XML_PARSER)
+	except xml_et.XMLSyntaxError:
+		return slide_xml
+	signature = build_xml_signature(root, rel_hashes)
+	return repr(signature).encode("utf-8")
+
+
+#============================================
+def build_xml_signature(
+	element,
+	rel_hashes: dict[str, str] | None = None,
+) -> tuple:
+	"""
+	Build a stable signature for an XML element tree.
+
+	Args:
+		element: XML element.
+
+	Returns:
+		tuple: Signature tuple.
+	"""
+	if rel_hashes is None:
+		rel_hashes = {}
+	attrs = []
+	for attr_key, attr_value in element.attrib.items():
+		if attr_value in rel_hashes:
+			attrs.append((attr_key, rel_hashes[attr_value]))
+			continue
+		if should_ignore_attr(attr_key):
+			continue
+		attrs.append((attr_key, attr_value))
+	attrs = tuple(sorted(attrs))
+	children = tuple(build_xml_signature(child, rel_hashes) for child in list(element))
+	text = (element.text or "").strip()
+	tail = (element.tail or "").strip()
+	return (element.tag, attrs, text, children, tail)
+
+
+#============================================
+def should_ignore_attr(attr_key: str) -> bool:
+	"""
+	Return True for volatile attribute keys to ignore.
+
+	Args:
+		attr_key: Attribute key (may include namespace).
+
+	Returns:
+		bool: True if attribute should be ignored.
+	"""
+	local_name = attr_key.split("}")[-1]
+	return local_name in ("id", "name")
 
 
 #============================================
@@ -84,6 +176,41 @@ def compute_text_hash(text: str) -> str:
 	normalized = normalize_text(text)
 	digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 	return digest[:16]
+
+
+#============================================
+def is_header_row(row: dict[str, str]) -> bool:
+	"""
+	Check whether a row repeats the CSV header.
+
+	Args:
+		row: CSV row.
+
+	Returns:
+		bool: True if the row matches header values.
+	"""
+	for column in CSV_COLUMNS:
+		if row.get(column) != column:
+			return False
+	return True
+
+
+#============================================
+def sanitize_row_context(row: dict[str, str]) -> dict[str, str]:
+	"""
+	Sanitize context text fields in a CSV row.
+
+	Args:
+		row: CSV row.
+
+	Returns:
+		dict[str, str]: Sanitized row.
+	"""
+	sanitized = dict(row)
+	for column in CONTEXT_COLUMNS:
+		if column in sanitized:
+			sanitized[column] = sanitize_context_text(sanitized[column])
+	return sanitized
 
 
 #============================================
@@ -120,6 +247,8 @@ def read_slide_csv(path: str) -> list[dict[str, str]]:
 		validate_headers(headers)
 		rows = []
 		for row in reader:
+			if is_header_row(row):
+				continue
 			rows.append(row)
 		return rows
 
@@ -137,4 +266,4 @@ def write_slide_csv(path: str, rows: list[dict[str, str]]) -> None:
 		writer = csv.DictWriter(handle, fieldnames=CSV_COLUMNS)
 		writer.writeheader()
 		for row in rows:
-			writer.writerow(row)
+			writer.writerow(sanitize_row_context(row))

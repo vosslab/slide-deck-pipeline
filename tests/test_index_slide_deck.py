@@ -52,6 +52,36 @@ class FakeSlide:
 		self.shapes = shapes
 
 
+class FakeMaster:
+	def __init__(self, name: str) -> None:
+		self.name = name
+
+
+class FakeLayout:
+	def __init__(self, name: str, master_name: str = "") -> None:
+		self.name = name
+		self.slide_master = FakeMaster(master_name)
+
+
+class FakeSlideWithLayout:
+	def __init__(self, shapes, layout) -> None:
+		self.shapes = shapes
+		self._layout = layout
+
+	@property
+	def slide_layout(self):
+		return self._layout
+
+
+class FakeSlideLayoutError:
+	def __init__(self, shapes) -> None:
+		self.shapes = shapes
+
+	@property
+	def slide_layout(self):
+		raise ValueError("multiple relationships")
+
+
 #============================================
 def test_extract_paragraph_lines() -> None:
 	"""
@@ -99,6 +129,33 @@ def test_collect_asset_types() -> None:
 
 
 #============================================
+def test_resolve_layout_names_fallback() -> None:
+	"""
+	Fall back to custom layout names on errors.
+	"""
+	shapes = FakeShapes([])
+	slide = FakeSlideLayoutError(shapes)
+	master_name, layout_name, warning = index_slide_deck.resolve_layout_names(slide)
+	assert master_name == "custom"
+	assert layout_name == "custom"
+	assert warning is not None
+
+
+#============================================
+def test_resolve_layout_names_ok() -> None:
+	"""
+	Read layout and master names when available.
+	"""
+	shapes = FakeShapes([])
+	layout = FakeLayout("Layout Name", "Master Name")
+	slide = FakeSlideWithLayout(shapes, layout)
+	master_name, layout_name, warning = index_slide_deck.resolve_layout_names(slide)
+	assert master_name == "Master Name"
+	assert layout_name == "Layout Name"
+	assert warning is None
+
+
+#============================================
 def test_build_slide_row() -> None:
 	"""
 	Build a slide row with stable hashes.
@@ -109,7 +166,7 @@ def test_build_slide_row() -> None:
 		"Title",
 		"Body",
 		"Notes",
-		"Title\nBody",
+		csv_schema.compute_slide_hash(b"<slide>Title</slide>", "Notes"),
 		"Master",
 		"Layout",
 		"image",
@@ -119,5 +176,5 @@ def test_build_slide_row() -> None:
 	assert row["master_name"] == "Master"
 	assert row["layout_name"] == "Layout"
 	assert row["asset_types"] == "image"
-	expected_hash = csv_schema.compute_slide_hash("Title\nBody", "Notes")
+	expected_hash = csv_schema.compute_slide_hash(b"<slide>Title</slide>", "Notes")
 	assert row["slide_hash"] == expected_hash

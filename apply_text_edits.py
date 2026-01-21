@@ -10,6 +10,7 @@ import yaml
 
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
+import slide_deck_pipeline.pptx_hash as pptx_hash
 import slide_deck_pipeline.pptx_text as pptx_text
 import slide_deck_pipeline.text_boxes as text_boxes
 import slide_deck_pipeline.soffice_tools as soffice_tools
@@ -345,9 +346,11 @@ def apply_and_save(
 			missing += 1
 			continue
 		slide = presentation.slides[slide_number - 1]
-		slide_text = pptx_text.extract_slide_text(slide)
 		notes_text = pptx_text.extract_notes_text(slide)
-		current_hash = csv_schema.compute_slide_hash(slide_text, notes_text)
+		current_hash, _, _ = pptx_hash.compute_slide_hash_from_slide(
+			slide,
+			notes_text,
+		)
 		expected_hash = str(patch.get("slide_hash", ""))
 		if not expected_hash or expected_hash != current_hash:
 			slide_hash_mismatch += 1

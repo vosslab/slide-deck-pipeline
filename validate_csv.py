@@ -162,28 +162,39 @@ def is_hex_hash(value: str) -> bool:
 
 
 #============================================
-def load_template_layouts(template_path: str) -> set[tuple[str, str]]:
+def load_template_layout_types(template_path: str) -> set[tuple[str, str]]:
 	"""
-	Load master and layout name pairs from a template PPTX.
+	Load master and layout type pairs from a template PPTX.
 
 	Args:
 		template_path: Template PPTX path.
 
 	Returns:
-		set[tuple[str, str]]: Normalized (master, layout) pairs.
+		set[tuple[str, str]]: Normalized (master, layout_type) pairs.
 	"""
 	# PIP3 modules
 	import pptx
 
+	# local repo modules
+	import slide_deck_pipeline.layout_classifier as layout_classifier
+
 	presentation = pptx.Presentation(template_path)
+	slide_width = int(getattr(presentation, "slide_width", 0) or 0)
+	slide_height = int(getattr(presentation, "slide_height", 0) or 0)
 	available = set()
 	for layout in presentation.slide_layouts:
-		layout_name = normalize_name(layout.name)
+		layout_type = layout_classifier.classify_layout_type(
+			layout,
+			slide_width,
+			slide_height,
+			"",
+			"",
+		)
 		master = getattr(layout, "slide_master", None)
 		master_name = normalize_name(getattr(master, "name", ""))
-		if not layout_name:
+		if not layout_type:
 			continue
-		available.add((master_name, layout_name))
+		available.add((master_name, layout_type))
 	return available
 
 
@@ -215,7 +226,7 @@ def validate_rows(
 		if not os.path.exists(template_path):
 			errors.append("Template PPTX not found.")
 		else:
-			layout_pairs = load_template_layouts(template_path)
+			layout_pairs = load_template_layout_types(template_path)
 	if not rows:
 		warnings.append("No rows found in CSV.")
 		return (errors, warnings)
@@ -254,15 +265,16 @@ def validate_rows(
 			errors.append(f"Row {index}: slide_hash must be 16 hex characters.")
 
 		master_name = normalize_row_value(row, "master_name")
-		layout_name = normalize_row_value(row, "layout_name")
+		layout_type = normalize_row_value(row, "layout_type")
+		layout_type_key = normalize_name(layout_type)
 		if not master_name:
 			errors.append(f"Row {index}: missing master_name.")
-		if not layout_name:
-			errors.append(f"Row {index}: missing layout_name.")
-		if layout_pairs and master_name and layout_name:
-			pair = (normalize_name(master_name), normalize_name(layout_name))
+		if not layout_type:
+			errors.append(f"Row {index}: missing layout_type.")
+		if layout_pairs and master_name and layout_type:
+			pair = (normalize_name(master_name), layout_type_key)
 			if pair not in layout_pairs:
-				errors.append(f"Row {index}: master/layout not found in template.")
+				errors.append(f"Row {index}: master/layout_type not found in template.")
 
 		if strict and source_pptx and is_positive_int(slide_index) and slide_hash:
 			resolved_path = resolve_source_path(source_pptx, csv_dir)

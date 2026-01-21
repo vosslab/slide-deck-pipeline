@@ -232,27 +232,26 @@ def collect_unsupported_shapes(slide: pptx.slide.Slide) -> list[str]:
 
 
 #============================================
-def resolve_layout_names(slide: pptx.slide.Slide) -> tuple[str, str, str | None]:
+def resolve_master_name(slide: pptx.slide.Slide) -> tuple[str, str | None]:
 	"""
-	Resolve master and layout names for a slide.
+	Resolve master name for a slide.
 
 	Args:
 		slide: Slide instance.
 
 	Returns:
-		tuple[str, str, str | None]: master name, layout name, warning text.
+		tuple[str, str | None]: master name, warning text.
 	"""
 	try:
 		layout = slide.slide_layout
 	except Exception as exc:
 		message = f"layout lookup failed: {exc}"
-		return ("custom", "custom", message)
-	layout_name = layout.name or "custom"
+		return ("custom", message)
 	master_name = "custom"
 	slide_master = getattr(layout, "slide_master", None)
 	if slide_master and getattr(slide_master, "name", ""):
 		master_name = slide_master.name
-	return (master_name, layout_name, None)
+	return (master_name, None)
 
 
 #============================================
@@ -287,7 +286,6 @@ def build_slide_row(
 	notes_text: str,
 	slide_hash: str,
 	master_name: str,
-	layout_name: str,
 	layout_type: str,
 	asset_types: str,
 ) -> dict[str, str]:
@@ -302,7 +300,6 @@ def build_slide_row(
 	notes_text: Notes text.
 	slide_hash: Slide hash.
 	master_name: Template master name.
-	layout_name: Template layout name.
 	layout_type: Computed semantic layout type.
 	asset_types: Asset type summary.
 
@@ -314,7 +311,6 @@ def build_slide_row(
 		"source_slide_index": str(slide_index),
 		"slide_hash": slide_hash,
 		"master_name": master_name,
-		"layout_name": layout_name,
 		"layout_type": layout_type,
 		"asset_types": asset_types,
 		"title_text": title_text,
@@ -382,7 +378,7 @@ def index_rows(
 			title_text,
 			body_text,
 		)
-		master_name, layout_name, layout_warning = resolve_layout_names(slide)
+		master_name, layout_warning = resolve_master_name(slide)
 		if layout_warning:
 			layout_errors[index] = layout_warning
 		unsupported = collect_unsupported_shapes(slide)
@@ -396,7 +392,6 @@ def index_rows(
 			notes_text,
 			slide_hash,
 			master_name,
-			layout_name,
 			layout_type,
 			asset_types,
 		)

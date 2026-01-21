@@ -106,14 +106,24 @@ def test_normalize_name() -> None:
 #============================================
 def test_select_layout_with_master() -> None:
 	"""
-	Select a layout using master and layout names.
+	Select a layout using master and layout type.
 	"""
 	layouts = [
 		FakeLayout("Title and Content", "Core"),
 		FakeLayout("Title and Content", "Alt"),
 	]
 	presentation = FakePresentation(layouts)
-	layout = rebuild_slides.select_layout(presentation, "Alt", "Title and Content")
+	layout_map = {
+		"alt": {
+			"title_content": layouts[1],
+		}
+	}
+	layout = rebuild_slides.select_layout(
+		presentation,
+		layout_map,
+		"Alt",
+		"title_content",
+	)
 	assert layout.slide_master.name == "Alt"
 
 
@@ -124,7 +134,12 @@ def test_select_layout_fallback() -> None:
 	"""
 	layouts = [FakeLayout("First"), FakeLayout("Second")]
 	presentation = FakePresentation(layouts)
-	layout = rebuild_slides.select_layout(presentation, "", "unknown")
+	layout = rebuild_slides.select_layout(
+		presentation,
+		{},
+		"",
+		"unknown",
+	)
 	assert layout.name == "First"
 
 

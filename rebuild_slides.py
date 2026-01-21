@@ -13,6 +13,7 @@ import pptx.util
 
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
+import slide_deck_pipeline.layout_classifier as layout_classifier
 import slide_deck_pipeline.pptx_hash as pptx_hash
 import slide_deck_pipeline.soffice_tools as soffice_tools
 
@@ -68,40 +69,65 @@ def normalize_name(name: str) -> str:
 
 
 #============================================
-def select_layout(
+def build_layout_map(
 	presentation: pptx.Presentation,
-	master_name: str,
-	layout_name: str,
-) -> pptx.slide.SlideLayout:
+) -> dict[str, dict[str, pptx.slide.SlideLayout]]:
 	"""
-	Select a slide layout based on master and layout names.
+	Build a map of master -> layout_type -> slide layout.
 
 	Args:
 		presentation: Presentation instance.
+
+	Returns:
+		dict[str, dict[str, pptx.slide.SlideLayout]]: Layout map.
+	"""
+	slide_width = int(getattr(presentation, "slide_width", 0) or 0)
+	slide_height = int(getattr(presentation, "slide_height", 0) or 0)
+	layout_map: dict[str, dict[str, pptx.slide.SlideLayout]] = {}
+	for layout in presentation.slide_layouts:
+		layout_type = layout_classifier.classify_layout_type(
+			layout,
+			slide_width,
+			slide_height,
+			"",
+			"",
+		)
+		master = getattr(layout, "slide_master", None)
+		master_key = normalize_name(getattr(master, "name", "")) or "custom"
+		layout_map.setdefault(master_key, {})
+		if layout_type not in layout_map[master_key]:
+			layout_map[master_key][layout_type] = layout
+	return layout_map
+
+
+#============================================
+def select_layout(
+	presentation: pptx.Presentation,
+	layout_map: dict[str, dict[str, pptx.slide.SlideLayout]],
+	master_name: str,
+	layout_type: str,
+) -> pptx.slide.SlideLayout:
+	"""
+	Select a slide layout based on master and layout type.
+
+	Args:
+		presentation: Presentation instance.
+		layout_map: Master/layout_type map.
 		master_name: Template master name.
-		layout_name: Template layout name.
+		layout_type: Semantic layout type.
 
 	Returns:
 		pptx.slide.SlideLayout: Selected layout.
 	"""
-	target_master = normalize_name(master_name)
-	target_layout = normalize_name(layout_name)
-	best_matches = []
-	layout_only_matches = []
-	for layout in presentation.slide_layouts:
-		layout_key = normalize_name(layout.name)
-		master = getattr(layout, "slide_master", None)
-		master_key = normalize_name(getattr(master, "name", ""))
-		if target_layout and layout_key != target_layout:
-			continue
-		if target_master and master_key != target_master:
-			layout_only_matches.append(layout)
-			continue
-		best_matches.append(layout)
-	if best_matches:
-		return best_matches[0]
-	if layout_only_matches:
-		return layout_only_matches[0]
+	target_master = normalize_name(master_name) or "custom"
+	target_layout = normalize_name(layout_type) or "custom"
+	master_layouts = layout_map.get(target_master, {})
+	if target_layout in master_layouts:
+		return master_layouts[target_layout]
+	if "custom" in master_layouts:
+		return master_layouts["custom"]
+	if master_layouts:
+		return list(master_layouts.values())[0]
 	if presentation.slide_layouts:
 		return presentation.slide_layouts[0]
 	raise ValueError("No slide layouts available in template.")
@@ -363,6 +389,7 @@ def rebuild_from_csv(
 		presentation = pptx.Presentation(template_path)
 	else:
 		presentation = pptx.Presentation()
+	layout_map = build_layout_map(presentation)
 	csv_dir = os.path.dirname(os.path.abspath(input_csv))
 	source_cache: dict[str, pptx.Presentation] = {}
 	temp_dirs = []
@@ -396,13 +423,14 @@ def rebuild_from_csv(
 				f"Row {row_index}: slide_hash mismatch for {source_pptx} slide {slide_index}."
 			)
 		image_blobs = collect_source_images(source_slide)
-		layout_name = row.get("layout_name", "")
-		if not layout_name:
-			raise ValueError(f"Row {row_index}: layout_name is missing.")
+		layout_type = row.get("layout_type", "")
+		if not layout_type:
+			raise ValueError(f"Row {row_index}: layout_type is missing.")
 		layout = select_layout(
 			presentation,
+			layout_map,
 			row.get("master_name", ""),
-			layout_name,
+			layout_type,
 		)
 		slide = presentation.slides.add_slide(layout)
 		set_title(slide, row.get("title_text", ""))

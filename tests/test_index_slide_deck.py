@@ -129,29 +129,27 @@ def test_collect_asset_types() -> None:
 
 
 #============================================
-def test_resolve_layout_names_fallback() -> None:
+def test_resolve_master_name_fallback() -> None:
 	"""
-	Fall back to custom layout names on errors.
+	Fall back to custom master name on errors.
 	"""
 	shapes = FakeShapes([])
 	slide = FakeSlideLayoutError(shapes)
-	master_name, layout_name, warning = index_slide_deck.resolve_layout_names(slide)
+	master_name, warning = index_slide_deck.resolve_master_name(slide)
 	assert master_name == "custom"
-	assert layout_name == "custom"
 	assert warning is not None
 
 
 #============================================
-def test_resolve_layout_names_ok() -> None:
+def test_resolve_master_name_ok() -> None:
 	"""
-	Read layout and master names when available.
+	Read master names when available.
 	"""
 	shapes = FakeShapes([])
 	layout = FakeLayout("Layout Name", "Master Name")
 	slide = FakeSlideWithLayout(shapes, layout)
-	master_name, layout_name, warning = index_slide_deck.resolve_layout_names(slide)
+	master_name, warning = index_slide_deck.resolve_master_name(slide)
 	assert master_name == "Master Name"
-	assert layout_name == "Layout Name"
 	assert warning is None
 
 
@@ -168,14 +166,12 @@ def test_build_slide_row() -> None:
 		"Notes",
 		csv_schema.compute_slide_hash(b"<slide>Title</slide>", "Notes"),
 		"Master",
-		"Layout",
 		"title_content",
 		"image",
 	)
 	assert row["source_pptx"] == "deck.pptx"
 	assert row["source_slide_index"] == "2"
 	assert row["master_name"] == "Master"
-	assert row["layout_name"] == "Layout"
 	assert row["layout_type"] == "title_content"
 	assert row["asset_types"] == "image"
 	expected_hash = csv_schema.compute_slide_hash(b"<slide>Title</slide>", "Notes")

@@ -7,7 +7,6 @@ def build_row(
 	slide_hash: str,
 	source_slide_index: str = "1",
 	master_name: str = "Master",
-	layout_name: str = "Layout",
 	layout_type: str = "title_content",
 	asset_types: str = "image",
 ) -> dict[str, str]:
@@ -19,7 +18,6 @@ def build_row(
 		"source_slide_index": source_slide_index,
 		"slide_hash": slide_hash,
 		"master_name": master_name,
-		"layout_name": layout_name,
 		"layout_type": layout_type,
 		"asset_types": asset_types,
 		"title_text": "Title",
@@ -50,12 +48,12 @@ def test_validate_rows_ok() -> None:
 
 
 #============================================
-def test_validate_rows_missing_layout() -> None:
+def test_validate_rows_missing_layout_type() -> None:
 	"""
-	Detect missing layout_name values.
+	Detect missing layout_type values.
 	"""
 	slide_hash = csv_schema.compute_slide_hash(b"<slide>Title</slide>", "")
-	rows = [build_row(slide_hash, layout_name="")]
+	rows = [build_row(slide_hash, layout_type="")]
 	errors, warnings = validate_csv.validate_rows(
 		rows,
 		csv_dir="",
@@ -63,7 +61,7 @@ def test_validate_rows_missing_layout() -> None:
 		strict=False,
 		template_path="",
 	)
-	assert any("missing layout_name" in item for item in errors)
+	assert any("missing layout_type" in item for item in errors)
 	assert not warnings
 
 

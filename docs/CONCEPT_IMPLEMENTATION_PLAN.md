@@ -13,7 +13,7 @@
 
 ## Data model and identifiers
 - Define a slide record with stable keys: source_pptx, source_slide_index,
-  slide_hash, master_name, layout_name, layout_type, asset_types, title_text,
+  slide_hash, master_name, layout_type, asset_types, title_text,
   body_text, notes_text.
 - Generate slide_hash from a stable CRC32 of source_pptx + slide_index +
 - normalized slide text.
@@ -28,8 +28,7 @@
 - `source_slide_index`: integer slide index starting at 1.
 - `slide_hash`: content fingerprint for the slide.
 - `master_name`: editable target template master name.
-- `layout_name`: editable target template layout name.
-- `layout_type`: computed semantic layout type (context only).
+- `layout_type`: editable semantic layout type.
 - `asset_types`: context only; not editable in the CSV.
 - `title_text`: context only; not editable in the CSV.
 - `body_text`: context only; not editable in the CSV.
@@ -46,13 +45,13 @@
 - Provide LLM instructions that enforce:
   - Reuse slide_hash when keeping a slide.
   - Create new slide_hash when merging content, with provenance list.
-  - Keep master_name/layout_name explicit and only from the template deck.
+  - Keep master_name/layout_type explicit and only from the template deck.
 - Implement a validator that checks CSV headers, missing source deck files, and
   master/layout validity before rebuild.
 
 ## Phase 3: Rebuild
 - Start from a template PPTX with approved masters and layouts.
-- Select layouts from the template deck using master_name/layout_name.
+- Select layouts from the template deck using master_name/layout_type.
 - Insert title/body text and notes with explicit formatting.
 - Insert images by reading them from the source slides referenced in the CSV.
 - Apply theme rules for fonts, sizes, colors, spacing, and bullet indentation.

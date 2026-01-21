@@ -18,19 +18,20 @@
 ## Template requirements
 - Slide size and aspect ratio are defined by the template deck and are the
   output size for every rebuild.
-- The template deck includes layouts that match the `master_name` and
-  `layout_name` columns.
+- The template deck includes layouts that map to the `master_name` and
+  `layout_type` columns.
 - Each layout provides placeholders for title and body text.
 - Figure layouts include a picture placeholder or a known figure box.
 - The template deck may include multiple masters; each row specifies
-  `(master_name, layout_name)`.
+  `(master_name, layout_type)`.
 
 ## Layout selection
 - The CSV is only a slide ordering and selection surface.
 - Layouts are sourced from the template deck at rebuild time.
-- The CSV provides editable `master_name` and `layout_name` per row.
-- The CSV provides computed `layout_type` for semantic grouping.
+- The CSV provides editable `master_name` and `layout_type` per row.
 - Layout geometry comes from template placeholders (source of truth).
+- Rebuild maps `(master_name, layout_type)` to concrete layout names in the
+  template deck.
 
 ## Typography rules
 - Title font family, size, and color are fixed per template.
@@ -54,8 +55,7 @@
 - `source_slide_index`: integer slide index starting at 1.
 - `slide_hash`: content fingerprint for the slide.
 - `master_name`: editable target template master name.
-- `layout_name`: editable target template layout name.
-- `layout_type`: computed semantic layout type (context only).
+- `layout_type`: editable semantic layout type.
 - `asset_types`: context only; not editable in the CSV.
 - `title_text`: context only; not editable in the CSV.
 - `body_text`: context only; not editable in the CSV.

@@ -9,7 +9,6 @@ CSV_COLUMNS = [
 	"source_slide_index",
 	"slide_hash",
 	"master_name",
-	"layout_name",
 	"layout_type",
 	"asset_types",
 	"title_text",

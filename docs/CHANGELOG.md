@@ -93,3 +93,4 @@
 - Normalized relationship payloads with XML normalization and added tests.
 - Added layout_type column and layout classifier helper module.
 - Guarded layout classifier placeholder enums for compatibility.
+- Replaced layout_name with layout_type in the CSV and rebuild selection logic.

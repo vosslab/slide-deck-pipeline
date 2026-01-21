@@ -106,6 +106,9 @@
 - Documented the allowed layout_type values for text-to-slides.
 - Expanded text-to-slides layout_type support to the full 12 Impress layouts
   with snake_case names and alias normalization.
+- Reconciled text-to-slides goals, schema, and template contract for 12 layout
+  types with multi-body support.
+- Added a layout_type placeholder count table for the text-to-slides schema.
 - Reworked slide hashing to use ordered shape tokens, geometry, text hashes, and
   image blobs plus notes text for stable structural hashes.
 - Added slide hash tests that cover shape order changes and picture changes.

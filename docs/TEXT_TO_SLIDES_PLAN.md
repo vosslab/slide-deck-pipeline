@@ -9,7 +9,7 @@
 - Keep instructor authoring simple and predictable.
 - Use library defaults by default. Optionally use a template deck for theme,
   slide size, masters, and layouts.
-- Keep supported layout types small (3 to 6) and deterministic.
+- Keep supported layout types small (about 12) and deterministic.
 - Keep the CLI scripts thin. Put worker logic in slide_deck_pipeline/.
 
 ## Non-goals
@@ -63,23 +63,26 @@ defaults:
   master_name: light                   # optional, only with template_deck
 
 slides:
-  - layout_type: title
+  - layout_type: title_slide
     title: Abiotic Factors
     subtitle: What shapes where organisms can live?
 
-  - layout_type: content
+  - layout_type: title_content
     title: Abiotic factors
-    bullets:
-      - Temperature
-      - Water
-      - Oxygen
-      - Salinity
-      - Sunlight
-      - Soil
+    bodies:
+      - bullets:
+          - Temperature
+          - Water
+          - Oxygen
+          - Salinity
+          - Sunlight
+          - Soil
 
-  - layout_type: section
-    title: Practice
-    subtitle: Today: examples and a short activity
+  - layout_type: centered_text
+    bodies:
+      - bullets:
+          - Practice
+          - Today: examples and a short activity
 
   - layout_type: blank
 ```
@@ -88,7 +91,8 @@ Rules:
 - `version` is required.
 - `slides` is required and ordered.
 - Each slide must include `layout_type`.
-- `bullets` is a flat list of strings in v1 (no nesting).
+- `bodies` is a list of body blocks, one per body placeholder in order.
+- Each body block may contain `bullets` as a flat list of strings (no nesting).
 - `template_deck` may be provided in YAML or via CLI flag. The CLI flag
   overrides YAML.
 - If `template_deck` is absent, ignore `master_name`.
@@ -126,60 +130,49 @@ Aliases (accepted input, normalized to the canonical values above):
 - title_4_content -> title_4_content
 - title_6_content -> title_6_content
 
-### title
-Required:
-- `title`
+### Placeholder fill rules
+- For each layout_type, fill title, subtitle, and body placeholders that exist
+  in the selected layout.
+- Missing placeholders trigger warnings and the corresponding text is dropped.
+- Multi-body layouts fill bodies in order using the `bodies` list.
+- If `bodies` is missing, all body placeholders are left empty.
+- Extra bodies beyond available placeholders trigger warnings and are dropped.
 
-Optional:
-- `subtitle`
+Expected placeholder counts by layout_type:
 
-Behavior:
-- Fill title placeholder.
-- Fill subtitle placeholder if present; otherwise warn and drop subtitle.
+| layout_type | title placeholder | subtitle placeholder | body placeholders |
+| --- | --- | --- | --- |
+| blank | 0 | 0 | 0 |
+| title_slide | 1 | 1 | 0 |
+| title_content | 1 | 0 | 1 |
+| title_2_content | 1 | 0 | 2 |
+| title_only | 1 | 0 | 0 |
+| centered_text | 0 | 0 | 1 |
+| title_2_content_and_content | 1 | 0 | 3 |
+| title_content_and_2_content | 1 | 0 | 3 |
+| title_2_content_over_content | 1 | 0 | 3 |
+| title_content_over_content | 1 | 0 | 2 |
+| title_4_content | 1 | 0 | 4 |
+| title_6_content | 1 | 0 | 6 |
 
-### content
-Required:
-- `title`
-
-Optional:
-- `bullets`
-
-Behavior:
-- Fill title placeholder.
-- Render bullets into the body placeholder, one paragraph per item.
-- If bullets are missing, leave body empty.
-
-### section
-Required:
-- `title`
-
-Optional:
-- `subtitle`
-
-Behavior:
-- Uses a section layout. Fill placeholders as for title.
-
-### blank
-No fields required.
-
-Behavior:
-- Create a blank slide using the blank layout.
+Notes:
+- Subtitle placeholders are only expected for title_slide. If a template layout
+  provides a subtitle placeholder in other layouts, it is filled when `subtitle`
+  is present.
+- centered_text uses the first body placeholder only.
 
 ## Template contract
 Applies only when `template_deck` is provided.
 
-The template deck must provide the layouts needed by the supported layout types.
-
-Minimum required layouts:
-- title
-- content
-- section
-- blank
+The template deck must provide the layouts required by the layout types used in
+the spec.
 
 Placeholder requirements:
-- title: title placeholder, optional subtitle placeholder.
-- content: title placeholder, body placeholder.
-- section: title placeholder, optional subtitle placeholder.
+- title_slide/title_only: title placeholder, optional subtitle placeholder.
+- title_content: title placeholder and one body placeholder.
+- title_2_content/title_4_content/title_6_content: title placeholder and the
+  matching number of body placeholders.
+- centered_text: centered body placeholder (title placeholder optional).
 - blank: no placeholders required.
 
 Layout mapping strategy:
@@ -200,6 +193,7 @@ Formatting policy:
   creation.
 
 Bullets:
+- Each body block uses its `bullets` list to populate one body placeholder.
 - Each bullet string becomes one paragraph at bullet level 0.
 - No nested bullet levels in v1.
 
@@ -213,7 +207,8 @@ Overflow policy:
 Spec validation:
 - YAML schema version matches supported versions.
 - layout_type values are supported.
-- Field types are correct (title and subtitle strings, bullets list of strings).
+- Field types are correct (title/subtitle strings, bodies list of blocks, and
+  bullets list of strings).
 - Required fields exist per layout_type.
 
 Template validation:
@@ -248,8 +243,8 @@ Markdown constraints:
 - Slides separated by a line containing only `---`.
 - Each slide begins with a type line:
   - `# Title Slide`
-  - `# Content`
-  - `# Section`
+  - `# Title Content`
+  - `# Centered Text`
   - `# Blank`
 - Within a slide:
   - Next `#` line is title.
@@ -260,6 +255,8 @@ Converter rules:
 - Unknown layout_type labels are errors.
 - Multiple titles or subtitles in one slide are errors.
 - Non-bullet paragraphs in content slides are errors in v1.
+- v1 Markdown conversion emits only the layout types listed above unless the
+  Markdown format is extended to support multiple bodies.
 
 ## Code organization
 Entry scripts (thin orchestrators):
@@ -284,7 +281,7 @@ Worker modules (all logic in slide_deck_pipeline/):
   - locate placeholders
 - `slide_deck_pipeline/text_to_slides.py`
   - render spec to PPTX using template utilities
-  - fill placeholders (title, subtitle, bullets)
+  - fill placeholders (title, subtitle, bodies)
 - `slide_deck_pipeline/reporting.py`
   - warnings and summary formatting
 

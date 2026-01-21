@@ -119,3 +119,9 @@
   image blobs plus notes text for stable structural hashes.
 - Added slide hash tests that cover shape order changes and picture changes.
 - Updated plan docs to describe structural slide hash inputs.
+- Added docs/MC_TO_SLIDES.md with the multiple-choice deck plan.
+- Added strict mode and text normalization details to the MC plan.
+- Added MC parser, template handling, and rendering pipeline for quiz text decks.
+- Added mc_to_slides CLI and tests for MC parsing, templates, and rendering.
+- Escaped non-ASCII bullet glyphs in the MC template source XML.
+- Marked mc_to_slides.py as executable to match the shebang policy.

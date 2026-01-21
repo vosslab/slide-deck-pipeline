@@ -6,6 +6,7 @@ import tempfile
 
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
+import slide_deck_pipeline.path_resolver as path_resolver
 import slide_deck_pipeline.soffice_tools as soffice_tools
 
 
@@ -67,24 +68,31 @@ def parse_args() -> argparse.Namespace:
 
 #============================================
 #============================================
-def resolve_source_path(source_pptx: str, csv_dir: str) -> str:
+def resolve_source_path(
+	source_pptx: str,
+	csv_dir: str,
+	strict: bool,
+	warnings: list[str],
+) -> str:
 	"""
 	Resolve a source path using the CSV directory as fallback.
 
 	Args:
 		source_pptx: Source PPTX or ODP path.
 		csv_dir: Directory containing the CSV.
+		strict: Treat ambiguous matches as errors.
+		warnings: Warning list to append to.
 
 	Returns:
 		str: Resolved source path.
 	"""
-	if os.path.exists(source_pptx):
-		return source_pptx
-	if csv_dir:
-		candidate = os.path.join(csv_dir, source_pptx)
-		if os.path.exists(candidate):
-			return candidate
-	return source_pptx
+	resolved, path_warnings = path_resolver.resolve_path(
+		source_pptx,
+		input_dir=csv_dir,
+		strict=strict,
+	)
+	warnings.extend(path_warnings)
+	return resolved
 
 
 #============================================
@@ -223,10 +231,16 @@ def validate_rows(
 	warnings = []
 	layout_pairs: set[tuple[str, str]] = set()
 	if template_path:
-		if not os.path.exists(template_path):
+		try:
+			resolved_template, template_warnings = path_resolver.resolve_path(
+				template_path,
+				input_dir=csv_dir,
+				strict=strict,
+			)
+			warnings.extend(template_warnings)
+			layout_pairs = load_template_layout_types(resolved_template)
+		except FileNotFoundError:
 			errors.append("Template PPTX not found.")
-		else:
-			layout_pairs = load_template_layout_types(template_path)
 	if not rows:
 		warnings.append("No rows found in CSV.")
 		return (errors, warnings)
@@ -250,8 +264,17 @@ def validate_rows(
 			if extension not in (".pptx", ".odp"):
 				warnings.append(f"Row {index}: unexpected source_pptx extension.")
 			if check_sources or strict:
-				resolved_path = resolve_source_path(source_pptx, csv_dir)
-				if not os.path.exists(resolved_path):
+				try:
+					resolved_path = resolve_source_path(
+						source_pptx,
+						csv_dir,
+						strict,
+						warnings,
+					)
+				except FileNotFoundError:
+					errors.append(f"Row {index}: source_pptx not found.")
+					resolved_path = ""
+				if resolved_path and not os.path.exists(resolved_path):
 					errors.append(f"Row {index}: source_pptx not found.")
 
 		slide_index = normalize_row_value(row, "source_slide_index")
@@ -277,8 +300,14 @@ def validate_rows(
 				errors.append(f"Row {index}: master/layout_type not found in template.")
 
 		if strict and source_pptx and is_positive_int(slide_index) and slide_hash:
-			resolved_path = resolve_source_path(source_pptx, csv_dir)
-			if not os.path.exists(resolved_path):
+			try:
+				resolved_path = resolve_source_path(
+					source_pptx,
+					csv_dir,
+					strict,
+					warnings,
+				)
+			except FileNotFoundError:
 				continue
 			source_presentation = source_cache.get(resolved_path)
 			if not source_presentation:

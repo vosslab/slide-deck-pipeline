@@ -14,6 +14,7 @@ import pptx.util
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
 import slide_deck_pipeline.layout_classifier as layout_classifier
+import slide_deck_pipeline.path_resolver as path_resolver
 import slide_deck_pipeline.pptx_hash as pptx_hash
 import slide_deck_pipeline.soffice_tools as soffice_tools
 
@@ -248,7 +249,7 @@ def set_notes_text(slide: pptx.slide.Slide, notes_text: str) -> None:
 
 
 #============================================
-def resolve_source_path(source_pptx: str, csv_dir: str) -> str:
+def resolve_source_path(source_pptx: str, csv_dir: str) -> tuple[str, list[str]]:
 	"""
 	Resolve a source path using the CSV directory as fallback.
 
@@ -257,15 +258,13 @@ def resolve_source_path(source_pptx: str, csv_dir: str) -> str:
 		csv_dir: Directory containing the CSV.
 
 	Returns:
-		str: Resolved source path.
+		tuple[str, list[str]]: Resolved source path and warnings.
 	"""
-	if os.path.exists(source_pptx):
-		return source_pptx
-	if csv_dir:
-		candidate = os.path.join(csv_dir, source_pptx)
-		if os.path.exists(candidate):
-			return candidate
-	raise FileNotFoundError(f"Source file not found: {source_pptx}")
+	return path_resolver.resolve_path(
+		source_pptx,
+		input_dir=csv_dir,
+		strict=False,
+	)
 
 
 #============================================
@@ -385,17 +384,26 @@ def rebuild_from_csv(
 		template_path: Template PPTX path or empty string.
 	"""
 	rows = csv_schema.read_slide_csv(input_csv)
+	csv_dir = os.path.dirname(os.path.abspath(input_csv))
 	if template_path:
-		presentation = pptx.Presentation(template_path)
+		resolved_template, template_warnings = path_resolver.resolve_path(
+			template_path,
+			input_dir=csv_dir,
+			strict=False,
+		)
+		for message in template_warnings:
+			print(f"Warning: {message}")
+		presentation = pptx.Presentation(resolved_template)
 	else:
 		presentation = pptx.Presentation()
 	layout_map = build_layout_map(presentation)
-	csv_dir = os.path.dirname(os.path.abspath(input_csv))
 	source_cache: dict[str, pptx.Presentation] = {}
 	temp_dirs = []
 	for row_index, row in enumerate(rows, 1):
 		source_pptx = row["source_pptx"]
-		source_path = resolve_source_path(source_pptx, csv_dir)
+		source_path, path_warnings = resolve_source_path(source_pptx, csv_dir)
+		for message in path_warnings:
+			print(f"Warning: {message}")
 		source_key = source_path
 		source_presentation = source_cache.get(source_key)
 		if not source_presentation:

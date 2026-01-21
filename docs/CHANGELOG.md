@@ -113,6 +113,8 @@
   text-to-slides plan.
 - Clarified Markdown type line parsing and conditional template validation for
   text-to-slides.
+- Added text-to-slides implementation modules, CLI scripts, and tests.
+- Added shared path resolution for PPTX/assets and wired it into pipeline tools.
 - Reworked slide hashing to use ordered shape tokens, geometry, text hashes, and
   image blobs plus notes text for stable structural hashes.
 - Added slide hash tests that cover shape order changes and picture changes.

@@ -44,7 +44,6 @@ EXTENSIONS = {
 	".fish",
 	".csv",
 	".tsv",
-	".xml",
 	".svg",
 	".sql",
 	".rb",

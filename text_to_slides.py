@@ -74,6 +74,7 @@ def main() -> None:
 		args.strict,
 	)
 	reporting.print_warnings(warnings)
+	print(f"Wrote output: {output_path}")
 
 
 if __name__ == "__main__":

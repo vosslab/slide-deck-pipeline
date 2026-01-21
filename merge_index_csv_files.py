@@ -127,6 +127,7 @@ def main() -> None:
 	csv_schema.write_slide_csv(args.output_path, rows)
 	print(f"Merged {len(input_paths)} files into {args.output_path}.")
 	print(f"Rows written: {len(rows)}")
+	print(f"Wrote output: {args.output_path}")
 
 
 if __name__ == "__main__":

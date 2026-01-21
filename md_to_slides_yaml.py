@@ -67,7 +67,7 @@ def main() -> None:
 		output_path = f"{base_name}.yaml"
 	payload = md_to_slides_yaml.markdown_to_spec(args.input_path)
 	write_yaml(output_path, payload)
-	print(f"Wrote YAML: {output_path}")
+	print(f"Wrote output: {output_path}")
 
 
 if __name__ == "__main__":

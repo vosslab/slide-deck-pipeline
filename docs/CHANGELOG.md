@@ -151,3 +151,4 @@
 - Simplified apply_text_edits.py to accept only YAML patch inputs.
 - Reported apply_text_edits.py output path in CLI.
 - Reported aspect_fixer.py output path in CLI.
+- Reported output paths for all root-level CLI scripts.

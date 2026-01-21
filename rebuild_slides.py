@@ -70,6 +70,7 @@ def main() -> None:
 		output_path,
 		args.template_path,
 	)
+	print(f"Wrote output: {output_path}")
 
 
 if __name__ == "__main__":

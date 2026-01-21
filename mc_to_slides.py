@@ -70,6 +70,7 @@ def main() -> None:
 	reporting.print_summary("Slides generated", len(questions))
 	reporting.print_summary("Questions skipped", stats["skipped_questions"])
 	reporting.print_warnings(warnings)
+	print(f"Wrote output: {output_path}")
 
 
 if __name__ == "__main__":

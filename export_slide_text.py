@@ -100,6 +100,7 @@ def main() -> None:
 		args.include_subtitle,
 		args.include_footer,
 	)
+	print(f"Wrote output: {output_path}")
 
 
 if __name__ == "__main__":

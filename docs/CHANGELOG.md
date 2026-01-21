@@ -64,3 +64,4 @@
 - Preferred the LibreOffice app soffice binary for ODP conversions on macOS.
 - Centralized soffice conversion helpers in slide_deck_pipeline/soffice_tools.py.
 - Added --headless, --norestore, and --safe-mode flags to soffice conversions.
+- Added a small pipeline smoke test that builds, indexes, merges, and rebuilds PPTX files.

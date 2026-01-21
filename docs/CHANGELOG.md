@@ -54,3 +54,13 @@
   slide_hash integrity behavior.
 - Aligned text editing plan YAML fields with CSV naming and CRC-style hashes.
 - Defined slide/text hash truncation policy using SHA-256 with 16 hex characters.
+- Updated the CSV schema to master/layout columns and SHA-256 slide hashes.
+- Refreshed index, rebuild, and validation logic to enforce slide hash integrity.
+- Added shared slide text and text box helpers for text edit workflows.
+- Added export and apply text edit CLI tools with YAML patch support.
+- Updated usage, architecture, and file structure docs for the text edit flow.
+- Updated tests to match the new CSV schema and hash behavior.
+- Added the asset_types CSV column to capture non-editable slide asset context.
+- Preferred the LibreOffice app soffice binary for ODP conversions on macOS.
+- Centralized soffice conversion helpers in slide_deck_pipeline/soffice_tools.py.
+- Added --headless, --norestore, and --safe-mode flags to soffice conversions.

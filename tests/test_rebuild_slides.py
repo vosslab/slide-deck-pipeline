@@ -5,9 +5,15 @@ pptx = pytest.importorskip("pptx")
 import rebuild_slides
 
 
-class FakeLayout:
+class FakeMaster:
 	def __init__(self, name: str) -> None:
 		self.name = name
+
+
+class FakeLayout:
+	def __init__(self, name: str, master_name: str = "") -> None:
+		self.name = name
+		self.slide_master = FakeMaster(master_name)
 
 
 class FakePresentation:
@@ -89,23 +95,26 @@ class FakeSlide:
 
 
 #============================================
-def test_normalize_layout_name() -> None:
+def test_normalize_name() -> None:
 	"""
-	Normalize layout names to hint tokens.
+	Normalize names to matching tokens.
 	"""
-	assert rebuild_slides.normalize_layout_name("Title And Content") == "title_and_content"
-	assert rebuild_slides.normalize_layout_name("") == ""
+	assert rebuild_slides.normalize_name("Title And Content") == "title_and_content"
+	assert rebuild_slides.normalize_name("") == ""
 
 
 #============================================
-def test_select_layout_with_alias() -> None:
+def test_select_layout_with_master() -> None:
 	"""
-	Select layout using an alias map.
+	Select a layout using master and layout names.
 	"""
-	layouts = [FakeLayout("Title and Content"), FakeLayout("Section Header")]
+	layouts = [
+		FakeLayout("Title and Content", "Core"),
+		FakeLayout("Title and Content", "Alt"),
+	]
 	presentation = FakePresentation(layouts)
-	layout = rebuild_slides.select_layout(presentation, "title_only")
-	assert layout.name == "Section Header"
+	layout = rebuild_slides.select_layout(presentation, "Alt", "Title and Content")
+	assert layout.slide_master.name == "Alt"
 
 
 #============================================
@@ -115,7 +124,7 @@ def test_select_layout_fallback() -> None:
 	"""
 	layouts = [FakeLayout("First"), FakeLayout("Second")]
 	presentation = FakePresentation(layouts)
-	layout = rebuild_slides.select_layout(presentation, "unknown")
+	layout = rebuild_slides.select_layout(presentation, "", "unknown")
 	assert layout.name == "First"
 
 
@@ -210,19 +219,3 @@ def test_insert_images_uses_placeholder() -> None:
 
 
 #============================================
-def test_select_images_by_locator() -> None:
-	"""
-	Select images by locator strings.
-	"""
-	images = [
-		{"blob": b"a", "hash": "h1", "shape_id": 7},
-		{"blob": b"b", "hash": "h2", "shape_id": 9},
-	]
-	locators = ["pptx:deck.pptx#slide=2#shape_id=7"]
-	selected = rebuild_slides.select_images_by_locator(
-		images,
-		locators,
-		"deck.pptx",
-		2,
-	)
-	assert selected == [b"a"]

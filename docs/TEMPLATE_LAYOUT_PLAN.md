@@ -54,6 +54,7 @@
 - `slide_hash`: content fingerprint for the slide.
 - `master_name`: editable target template master name.
 - `layout_name`: editable target template layout name.
+- `asset_types`: context only; not editable in the CSV.
 - `title_text`: context only; not editable in the CSV.
 - `body_text`: context only; not editable in the CSV.
 - `notes_text`: context only; not editable in the CSV.

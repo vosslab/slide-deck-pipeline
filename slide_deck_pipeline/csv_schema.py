@@ -1,6 +1,6 @@
 import csv
+import hashlib
 import os
-import zlib
 
 
 CSV_COLUMNS = [
@@ -9,6 +9,7 @@ CSV_COLUMNS = [
 	"slide_hash",
 	"master_name",
 	"layout_name",
+	"asset_types",
 	"title_text",
 	"body_text",
 	"notes_text",
@@ -44,25 +45,45 @@ def normalize_text(text: str | None) -> str:
 
 #============================================
 def compute_slide_hash(
-	source_pptx: str,
-	slide_index: int,
 	slide_text: str,
+	notes_text: str = "",
 ) -> str:
 	"""
-	Compute a stable slide hash from source and text content.
+	Compute a stable slide hash from slide content.
 
 	Args:
-		source_pptx: Source PPTX basename.
-		slide_index: 1-based slide index.
 		slide_text: Full slide text content.
+		notes_text: Speaker notes text.
 
 	Returns:
 		str: Slide hash.
 	"""
 	normalized_text = normalize_text(slide_text)
-	key = f"{source_pptx}:{slide_index}:{normalized_text}"
-	crc_value = zlib.crc32(key.encode("utf-8")) & 0xFFFFFFFF
-	return f"{crc_value:08x}"
+	normalized_notes = normalize_text(notes_text)
+	if normalized_text and normalized_notes:
+		payload = f"{normalized_text}\n{normalized_notes}"
+	elif normalized_text:
+		payload = normalized_text
+	else:
+		payload = normalized_notes
+	digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
+	return digest[:16]
+
+
+#============================================
+def compute_text_hash(text: str) -> str:
+	"""
+	Compute a stable hash for normalized text.
+
+	Args:
+		text: Input text.
+
+	Returns:
+		str: Text hash.
+	"""
+	normalized = normalize_text(text)
+	digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+	return digest[:16]
 
 
 #============================================

@@ -6,9 +6,15 @@
 - [slide_deck_pipeline/](slide_deck_pipeline/): shared modules used by CLI scripts.
 - [slide_deck_pipeline/csv_schema.py](slide_deck_pipeline/csv_schema.py): CSV
   schema and hashing utilities.
+- [slide_deck_pipeline/pptx_text.py](slide_deck_pipeline/pptx_text.py): slide
+  text extraction helpers.
+- [slide_deck_pipeline/text_boxes.py](slide_deck_pipeline/text_boxes.py): text
+  box mapping helpers for text edit patches.
 - [index_slide_deck.py](index_slide_deck.py): index slides to CSV.
 - [rebuild_slides.py](rebuild_slides.py): rebuild slides from merged CSV.
 - [validate_csv.py](validate_csv.py): validate merged CSVs and source references.
+- [export_slide_text.py](export_slide_text.py): export text edit patches.
+- [apply_text_edits.py](apply_text_edits.py): apply text edit patches.
 - [docs/](docs/): repository documentation.
 - [tests/](tests/): repo hygiene checks and unit tests.
 - [devel/](devel/): developer helper scripts.

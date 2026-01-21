@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 
 import argparse
-import hashlib
 import io
 import math
 import os
-import shutil
-import subprocess
 import tempfile
 
 # PIP3 modules
@@ -16,13 +13,8 @@ import pptx.util
 
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
-
-
-LAYOUT_HINT_ALIASES = {
-	"title_and_object": "title_and_content",
-	"title_only": "section_header",
-	"two_content": "two_column",
-}
+import slide_deck_pipeline.pptx_text as pptx_text
+import slide_deck_pipeline.soffice_tools as soffice_tools
 
 
 #============================================
@@ -59,81 +51,13 @@ def parse_args() -> argparse.Namespace:
 
 
 #============================================
-def convert_odp_to_pptx(odp_path: str, work_dir: str) -> str:
-	"""
-	Convert an ODP file to PPTX using soffice.
-
-	Args:
-		odp_path: Path to the ODP file.
-		work_dir: Output directory for the converted PPTX.
-
-	Returns:
-		str: Path to the converted PPTX file.
-	"""
-	soffice_bin = shutil.which("soffice")
-	if not soffice_bin:
-		raise FileNotFoundError("soffice not found. Install LibreOffice to convert ODP.")
-	command = [
-		soffice_bin,
-		"--headless",
-		"--convert-to",
-		"pptx",
-		"--outdir",
-		work_dir,
-		odp_path,
-	]
-	result = subprocess.run(command, capture_output=True, text=True, cwd=work_dir)
-	if result.returncode != 0:
-		message = result.stderr.strip() or result.stdout.strip()
-		raise RuntimeError(f"ODP conversion failed: {message}")
-	base_name = os.path.splitext(os.path.basename(odp_path))[0]
-	pptx_path = os.path.join(work_dir, f"{base_name}.pptx")
-	if not os.path.exists(pptx_path):
-		raise FileNotFoundError(f"Converted PPTX not found: {pptx_path}")
-	return pptx_path
-
-
 #============================================
-def convert_pptx_to_odp(pptx_path: str, output_path: str) -> None:
+def normalize_name(name: str) -> str:
 	"""
-	Convert a PPTX to ODP using soffice.
+	Normalize a master or layout name for matching.
 
 	Args:
-		pptx_path: Path to PPTX file.
-		output_path: Desired ODP output path.
-	"""
-	soffice_bin = shutil.which("soffice")
-	if not soffice_bin:
-		raise FileNotFoundError("soffice not found. Install LibreOffice to convert ODP.")
-	output_dir = os.path.dirname(output_path) or "."
-	command = [
-		soffice_bin,
-		"--headless",
-		"--convert-to",
-		"odp",
-		"--outdir",
-		output_dir,
-		pptx_path,
-	]
-	result = subprocess.run(command, capture_output=True, text=True, cwd=output_dir)
-	if result.returncode != 0:
-		message = result.stderr.strip() or result.stdout.strip()
-		raise RuntimeError(f"PPTX to ODP conversion failed: {message}")
-	expected_name = f"{os.path.splitext(os.path.basename(pptx_path))[0]}.odp"
-	converted_path = os.path.join(output_dir, expected_name)
-	if not os.path.exists(converted_path):
-		raise FileNotFoundError(f"Converted ODP not found: {converted_path}")
-	if os.path.abspath(converted_path) != os.path.abspath(output_path):
-		os.replace(converted_path, output_path)
-
-
-#============================================
-def normalize_layout_name(name: str) -> str:
-	"""
-	Normalize a layout name to a hint token.
-
-	Args:
-		name: Layout name.
+		name: Name value.
 
 	Returns:
 		str: Normalized name.
@@ -144,28 +68,40 @@ def normalize_layout_name(name: str) -> str:
 
 
 #============================================
-def select_layout(presentation: pptx.Presentation, layout_hint: str) -> pptx.slide.SlideLayout:
+def select_layout(
+	presentation: pptx.Presentation,
+	master_name: str,
+	layout_name: str,
+) -> pptx.slide.SlideLayout:
 	"""
-	Select a slide layout based on a hint.
+	Select a slide layout based on master and layout names.
 
 	Args:
 		presentation: Presentation instance.
-		layout_hint: Layout hint token.
+		master_name: Template master name.
+		layout_name: Template layout name.
 
 	Returns:
 		pptx.slide.SlideLayout: Selected layout.
 	"""
-	layout_map = {}
+	target_master = normalize_name(master_name)
+	target_layout = normalize_name(layout_name)
+	best_matches = []
+	layout_only_matches = []
 	for layout in presentation.slide_layouts:
-		key = normalize_layout_name(layout.name)
-		if key and key not in layout_map:
-			layout_map[key] = layout
-	hint = normalize_layout_name(layout_hint)
-	if hint in layout_map:
-		return layout_map[hint]
-	alias = LAYOUT_HINT_ALIASES.get(hint)
-	if alias and alias in layout_map:
-		return layout_map[alias]
+		layout_key = normalize_name(layout.name)
+		master = getattr(layout, "slide_master", None)
+		master_key = normalize_name(getattr(master, "name", ""))
+		if target_layout and layout_key != target_layout:
+			continue
+		if target_master and master_key != target_master:
+			layout_only_matches.append(layout)
+			continue
+		best_matches.append(layout)
+	if best_matches:
+		return best_matches[0]
+	if layout_only_matches:
+		return layout_only_matches[0]
 	if presentation.slide_layouts:
 		return presentation.slide_layouts[0]
 	raise ValueError("No slide layouts available in template.")
@@ -266,6 +202,26 @@ def set_body_text(slide: pptx.slide.Slide, body_text: str) -> None:
 
 
 #============================================
+def set_notes_text(slide: pptx.slide.Slide, notes_text: str) -> None:
+	"""
+	Set speaker notes text on a slide.
+
+	Args:
+		slide: Slide instance.
+		notes_text: Notes text.
+	"""
+	if not notes_text:
+		return
+	notes_slide = slide.notes_slide
+	if not notes_slide:
+		return
+	notes_frame = notes_slide.notes_text_frame
+	if not notes_frame:
+		return
+	notes_frame.text = notes_text
+
+
+#============================================
 def resolve_source_path(source_pptx: str, csv_dir: str) -> str:
 	"""
 	Resolve a source path using the CSV directory as fallback.
@@ -287,121 +243,25 @@ def resolve_source_path(source_pptx: str, csv_dir: str) -> str:
 
 
 #============================================
-def collect_source_images(slide: pptx.slide.Slide) -> list[dict[str, str | bytes]]:
+def collect_source_images(slide: pptx.slide.Slide) -> list[bytes]:
 	"""
-	Collect image blobs and hashes from a source slide.
+	Collect image blobs from a source slide.
 
 	Args:
 		slide: Source slide instance.
 
 	Returns:
-		list[dict[str, str | bytes]]: Image records.
+		list[bytes]: Image blobs in slide order.
 	"""
 	images = []
 	for shape in slide.shapes:
 		if shape.shape_type != pptx.enum.shapes.MSO_SHAPE_TYPE.PICTURE:
 			continue
-		blob = shape.image.blob
-		digest = hashlib.sha256(blob).hexdigest()
-		shape_id = shape.shape_id
-		images.append({"blob": blob, "hash": digest, "shape_id": shape_id})
+		images.append(shape.image.blob)
 	return images
 
 
 #============================================
-def sources_match(locator_source: str, row_source: str) -> bool:
-	"""
-	Check whether locator and row sources refer to the same file.
-
-	Args:
-		locator_source: Source from locator.
-		row_source: Source from CSV row.
-
-	Returns:
-		bool: True if sources match.
-	"""
-	if locator_source == row_source:
-		return True
-	if os.path.basename(locator_source) == os.path.basename(row_source):
-		return True
-	return False
-
-
-#============================================
-def select_images_by_locator(
-	images: list[dict[str, str | bytes]],
-	image_locators: list[str],
-	row_source: str,
-	slide_index: int,
-) -> list[bytes]:
-	"""
-	Select images using locator strings.
-
-	Args:
-		images: Image records.
-		image_locators: Locator strings.
-		row_source: Source PPTX or ODP name.
-		slide_index: Slide index.
-
-	Returns:
-		list[bytes]: Ordered image blobs.
-	"""
-	if not image_locators:
-		return []
-	lookup: dict[str, list[bytes]] = {}
-	for image in images:
-		shape_id = str(image.get("shape_id", ""))
-		if not shape_id:
-			continue
-		lookup.setdefault(shape_id, []).append(image["blob"])
-	ordered = []
-	for locator in image_locators:
-		parsed = csv_schema.parse_image_locator(locator)
-		if not parsed:
-			continue
-		locator_source = parsed.get("source", "")
-		if not sources_match(locator_source, row_source):
-			continue
-		locator_slide = parsed.get("slide", "")
-		if locator_slide != str(slide_index):
-			continue
-		shape_id = parsed.get("shape_id", "")
-		if not shape_id:
-			continue
-		candidates = lookup.get(shape_id, [])
-		if not candidates:
-			continue
-		ordered.append(candidates.pop(0))
-	return ordered
-
-
-#============================================
-def select_images_by_hash(
-	images: list[dict[str, str | bytes]],
-	image_hashes: list[str],
-) -> list[bytes]:
-	"""
-	Select images in the order of hash list.
-
-	Args:
-		images: Image records.
-		image_hashes: Desired image hashes.
-
-	Returns:
-		list[bytes]: Ordered image blobs.
-	"""
-	if not image_hashes:
-		return [image["blob"] for image in images]
-	lookup = {}
-	for image in images:
-		lookup.setdefault(image["hash"], []).append(image["blob"])
-	ordered = []
-	for digest in image_hashes:
-		candidates = lookup.get(digest, [])
-		if not candidates:
-			continue
-		ordered.append(candidates.pop(0))
-	return ordered
 
 
 #============================================
@@ -411,7 +271,7 @@ def place_images_grid(slide: pptx.slide.Slide, image_blobs: list[bytes]) -> None
 
 	Args:
 		slide: Slide instance.
-		image_paths: Image file paths.
+		image_blobs: Image blobs.
 	"""
 	if not image_blobs:
 		return
@@ -446,7 +306,7 @@ def insert_images(slide: pptx.slide.Slide, image_blobs: list[bytes]) -> None:
 
 	Args:
 		slide: Slide instance.
-		image_paths: Image file paths.
+		image_blobs: Image blobs.
 	"""
 	if not image_blobs:
 		return
@@ -485,7 +345,7 @@ def rebuild_from_csv(
 	csv_dir = os.path.dirname(os.path.abspath(input_csv))
 	source_cache: dict[str, pptx.Presentation] = {}
 	temp_dirs = []
-	for row in rows:
+	for row_index, row in enumerate(rows, 1):
 		source_pptx = row["source_pptx"]
 		source_path = resolve_source_path(source_pptx, csv_dir)
 		source_key = source_path
@@ -494,7 +354,7 @@ def rebuild_from_csv(
 			if source_path.lower().endswith(".odp"):
 				temp_dir = tempfile.TemporaryDirectory()
 				temp_dirs.append(temp_dir)
-				converted = convert_odp_to_pptx(source_path, temp_dir.name)
+				converted = soffice_tools.convert_odp_to_pptx(source_path, temp_dir.name)
 				source_presentation = pptx.Presentation(converted)
 			else:
 				source_presentation = pptx.Presentation(source_path)
@@ -506,28 +366,35 @@ def rebuild_from_csv(
 				f"Source slide index out of range: {source_pptx} {slide_index}."
 			)
 		source_slide = source_presentation.slides[slide_index - 1]
-		source_images = collect_source_images(source_slide)
-		image_locators = csv_schema.split_list_field(row["image_locators"])
-		image_hashes = csv_schema.split_list_field(row["image_hashes"])
-		image_blobs = select_images_by_locator(
-			source_images,
-			image_locators,
-			source_pptx,
-			slide_index,
+		slide_text = pptx_text.extract_slide_text(source_slide)
+		notes_text = pptx_text.extract_notes_text(source_slide)
+		computed_hash = csv_schema.compute_slide_hash(slide_text, notes_text)
+		row_hash = row.get("slide_hash", "")
+		if not row_hash:
+			raise ValueError(f"Row {row_index}: slide_hash is missing.")
+		if row_hash != computed_hash:
+			raise ValueError(
+				f"Row {row_index}: slide_hash mismatch for {source_pptx} slide {slide_index}."
+			)
+		image_blobs = collect_source_images(source_slide)
+		layout_name = row.get("layout_name", "")
+		if not layout_name:
+			raise ValueError(f"Row {row_index}: layout_name is missing.")
+		layout = select_layout(
+			presentation,
+			row.get("master_name", ""),
+			layout_name,
 		)
-		if not image_blobs:
-			image_blobs = select_images_by_hash(source_images, image_hashes)
-
-		layout = select_layout(presentation, row["layout_hint"])
 		slide = presentation.slides.add_slide(layout)
-		set_title(slide, row["title_text"])
-		set_body_text(slide, row["body_text"])
+		set_title(slide, row.get("title_text", ""))
+		set_body_text(slide, row.get("body_text", ""))
+		set_notes_text(slide, row.get("notes_text", ""))
 		insert_images(slide, image_blobs)
 	if output_path.lower().endswith(".odp"):
 		with tempfile.TemporaryDirectory() as temp_dir:
 			temp_pptx = os.path.join(temp_dir, "merged.pptx")
 			presentation.save(temp_pptx)
-			convert_pptx_to_odp(temp_pptx, output_path)
+			soffice_tools.convert_pptx_to_odp(temp_pptx, output_path)
 	else:
 		presentation.save(output_path)
 	for temp_dir in temp_dirs:

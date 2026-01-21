@@ -5,6 +5,8 @@ pptx = pytest.importorskip("pptx")
 import index_slide_deck
 import slide_deck_pipeline.csv_schema as csv_schema
 
+assert pptx
+
 
 class FakeParagraph:
 	def __init__(self, text: str, level: int = 0) -> None:
@@ -24,12 +26,16 @@ class FakeShape:
 		shape_type: int | None = None,
 		image: object | None = None,
 		shape_id: int = 1,
+		has_table: bool = False,
+		has_chart: bool = False,
 	) -> None:
 		self.has_text_frame = text_frame is not None
 		self.text_frame = text_frame
 		self.shape_type = shape_type
 		self.image = image
 		self.shape_id = shape_id
+		self.has_table = has_table
+		self.has_chart = has_chart
 
 
 class FakeShapes:
@@ -44,22 +50,6 @@ class FakeShapes:
 class FakeSlide:
 	def __init__(self, shapes) -> None:
 		self.shapes = shapes
-
-
-class FakeImage:
-	def __init__(self, blob: bytes, ext: str) -> None:
-		self.blob = blob
-		self.ext = ext
-
-
-#============================================
-def test_normalize_layout_hint() -> None:
-	"""
-	Normalize layout names to hint tokens.
-	"""
-	assert index_slide_deck.normalize_layout_hint("Title and Content") == "title_and_content"
-	assert index_slide_deck.normalize_layout_hint("Section Header") == "section_header"
-	assert index_slide_deck.normalize_layout_hint("") == "custom"
 
 
 #============================================
@@ -92,30 +82,26 @@ def test_extract_body_text_skips_title() -> None:
 
 
 #============================================
-def test_collect_slide_images() -> None:
+def test_collect_asset_types() -> None:
 	"""
-	Collect image blobs and hashes from picture shapes.
+	Summarize slide asset types.
 	"""
-	image = FakeImage(b"data", "png")
-	picture = FakeShape(
-		text_frame=None,
+	image_shape = FakeShape(
 		shape_type=pptx.enum.shapes.MSO_SHAPE_TYPE.PICTURE,
-		image=image,
-		shape_id=5,
 	)
-	other = FakeShape(text_frame=None, shape_type=pptx.enum.shapes.MSO_SHAPE_TYPE.AUTO_SHAPE)
-	slide = FakeSlide([picture, other])
-	images = index_slide_deck.collect_slide_images(slide, "deck.pptx", 1)
-	assert len(images) == 1
-	assert images[0]["hash"] == csv_schema.hash_text("data")
-	expected_locator = csv_schema.build_image_locator("deck.pptx", 1, 5)
-	assert images[0]["locator"] == expected_locator
+	second_image = FakeShape(
+		shape_type=pptx.enum.shapes.MSO_SHAPE_TYPE.PICTURE,
+	)
+	table_shape = FakeShape(has_table=True)
+	shapes = FakeShapes([image_shape, second_image, table_shape])
+	slide = FakeSlide(shapes)
+	assert index_slide_deck.collect_asset_types(slide) == "images_2|table"
 
 
 #============================================
 def test_build_slide_row() -> None:
 	"""
-	Build a slide row with stable hashes and IDs.
+	Build a slide row with stable hashes.
 	"""
 	row = index_slide_deck.build_slide_row(
 		"deck.pptx",
@@ -123,20 +109,15 @@ def test_build_slide_row() -> None:
 		"Title",
 		"Body",
 		"Notes",
-		"title_and_content",
-		["pptx:deck.pptx#slide=2#shape_id=4"],
-		["hash1"],
+		"Title\nBody",
+		"Master",
+		"Layout",
+		"image",
 	)
 	assert row["source_pptx"] == "deck.pptx"
 	assert row["source_slide_index"] == "2"
-	assert row["layout_hint"] == "title_and_content"
-	assert row["image_locators"] == "pptx:deck.pptx#slide=2#shape_id=4"
-	expected_uid = csv_schema.compute_slide_uid(
-		"deck.pptx",
-		2,
-		"Title",
-		"Body",
-		"Notes",
-		["hash1"],
-	)
-	assert row["slide_uid"] == expected_uid
+	assert row["master_name"] == "Master"
+	assert row["layout_name"] == "Layout"
+	assert row["asset_types"] == "image"
+	expected_hash = csv_schema.compute_slide_hash("Title\nBody", "Notes")
+	assert row["slide_hash"] == expected_hash

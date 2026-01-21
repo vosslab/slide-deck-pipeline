@@ -2,9 +2,11 @@
 
 import argparse
 import os
+import tempfile
 
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
+import slide_deck_pipeline.soffice_tools as soffice_tools
 
 
 #============================================
@@ -21,6 +23,13 @@ def parse_args() -> argparse.Namespace:
 		dest="input_csv",
 		required=True,
 		help="Input merged CSV path",
+	)
+	parser.add_argument(
+		"-t",
+		"--template",
+		dest="template_path",
+		default="",
+		help="Template PPTX path for master/layout validation",
 	)
 	parser.add_argument(
 		"-c",
@@ -41,14 +50,14 @@ def parse_args() -> argparse.Namespace:
 		"-s",
 		"--strict",
 		dest="strict",
-		help="Require hashes to match recomputed values",
+		help="Require slide hashes to match source slides",
 		action="store_true",
 	)
 	parser.add_argument(
 		"-S",
 		"--no-strict",
 		dest="strict",
-		help="Skip hash validation",
+		help="Skip slide hash validation",
 		action="store_false",
 	)
 	parser.set_defaults(strict=False)
@@ -56,6 +65,7 @@ def parse_args() -> argparse.Namespace:
 	return args
 
 
+#============================================
 #============================================
 def resolve_source_path(source_pptx: str, csv_dir: str) -> str:
 	"""
@@ -98,22 +108,19 @@ def normalize_row_value(row: dict[str, str], key: str) -> str:
 
 
 #============================================
-def sources_match(locator_source: str, row_source: str) -> bool:
+def normalize_name(name: str) -> str:
 	"""
-	Check whether locator and row sources refer to the same file.
+	Normalize a master or layout name for matching.
 
 	Args:
-		locator_source: Source from locator.
-		row_source: Source from CSV row.
+		name: Name value.
 
 	Returns:
-		bool: True if sources match.
+		str: Normalized name.
 	"""
-	if locator_source == row_source:
-		return True
-	if os.path.basename(locator_source) == os.path.basename(row_source):
-		return True
-	return False
+	if not name:
+		return ""
+	return name.strip().lower().replace(" ", "_")
 
 
 #============================================
@@ -136,11 +143,57 @@ def is_positive_int(value: str) -> bool:
 
 
 #============================================
+def is_hex_hash(value: str) -> bool:
+	"""
+	Check whether a value looks like a 16-char hex hash.
+
+	Args:
+		value: Hash string.
+
+	Returns:
+		bool: True if value matches the expected format.
+	"""
+	if len(value) != 16:
+		return False
+	for ch in value.lower():
+		if ch not in "0123456789abcdef":
+			return False
+	return True
+
+
+#============================================
+def load_template_layouts(template_path: str) -> set[tuple[str, str]]:
+	"""
+	Load master and layout name pairs from a template PPTX.
+
+	Args:
+		template_path: Template PPTX path.
+
+	Returns:
+		set[tuple[str, str]]: Normalized (master, layout) pairs.
+	"""
+	# PIP3 modules
+	import pptx
+
+	presentation = pptx.Presentation(template_path)
+	available = set()
+	for layout in presentation.slide_layouts:
+		layout_name = normalize_name(layout.name)
+		master = getattr(layout, "slide_master", None)
+		master_name = normalize_name(getattr(master, "name", ""))
+		if not layout_name:
+			continue
+		available.add((master_name, layout_name))
+	return available
+
+
+#============================================
 def validate_rows(
 	rows: list[dict[str, str]],
 	csv_dir: str,
 	check_sources: bool,
 	strict: bool,
+	template_path: str,
 ) -> tuple[list[str], list[str]]:
 	"""
 	Validate merged CSV rows.
@@ -149,25 +202,35 @@ def validate_rows(
 		rows: CSV rows.
 		csv_dir: Directory containing the CSV.
 		check_sources: Whether to check source files exist.
-		strict: Whether to validate hashes and fingerprints.
+		strict: Whether to validate slide hashes against sources.
+		template_path: Template PPTX path for layout validation.
 
 	Returns:
 		tuple[list[str], list[str]]: Errors and warnings.
 	"""
 	errors = []
 	warnings = []
-	seen_uids = set()
+	layout_pairs: set[tuple[str, str]] = set()
+	if template_path:
+		if not os.path.exists(template_path):
+			errors.append("Template PPTX not found.")
+		else:
+			layout_pairs = load_template_layouts(template_path)
 	if not rows:
 		warnings.append("No rows found in CSV.")
 		return (errors, warnings)
-	for index, row in enumerate(rows, 1):
-		slide_uid = normalize_row_value(row, "slide_uid")
-		if not slide_uid:
-			errors.append(f"Row {index}: missing slide_uid.")
-		if slide_uid and slide_uid in seen_uids:
-			errors.append(f"Row {index}: duplicate slide_uid {slide_uid}.")
-		seen_uids.add(slide_uid)
 
+	source_cache: dict[str, object] = {}
+	temp_dirs: list[tempfile.TemporaryDirectory] = []
+	pptx_module = None
+	pptx_text_module = None
+	if strict:
+		# PIP3 modules
+		import pptx as pptx_module
+
+		# local repo modules
+		import slide_deck_pipeline.pptx_text as pptx_text_module
+	for index, row in enumerate(rows, 1):
 		source_pptx = normalize_row_value(row, "source_pptx")
 		if not source_pptx:
 			errors.append(f"Row {index}: missing source_pptx.")
@@ -175,7 +238,7 @@ def validate_rows(
 			extension = os.path.splitext(source_pptx)[1].lower()
 			if extension not in (".pptx", ".odp"):
 				warnings.append(f"Row {index}: unexpected source_pptx extension.")
-			if check_sources:
+			if check_sources or strict:
 				resolved_path = resolve_source_path(source_pptx, csv_dir)
 				if not os.path.exists(resolved_path):
 					errors.append(f"Row {index}: source_pptx not found.")
@@ -183,72 +246,53 @@ def validate_rows(
 		slide_index = normalize_row_value(row, "source_slide_index")
 		if not is_positive_int(slide_index):
 			errors.append(f"Row {index}: invalid source_slide_index {slide_index}.")
-		slide_index_value = slide_index
 
-		layout_hint = normalize_row_value(row, "layout_hint")
-		if not layout_hint:
-			warnings.append(f"Row {index}: missing layout_hint.")
+		slide_hash = normalize_row_value(row, "slide_hash")
+		if not slide_hash:
+			errors.append(f"Row {index}: missing slide_hash.")
+		elif not is_hex_hash(slide_hash):
+			errors.append(f"Row {index}: slide_hash must be 16 hex characters.")
 
-		image_locators = csv_schema.split_list_field(
-			normalize_row_value(row, "image_locators")
-		)
-		image_hashes = csv_schema.split_list_field(
-			normalize_row_value(row, "image_hashes")
-		)
-		if image_locators and image_hashes:
-			if len(image_locators) != len(image_hashes):
+		master_name = normalize_row_value(row, "master_name")
+		layout_name = normalize_row_value(row, "layout_name")
+		if not master_name:
+			errors.append(f"Row {index}: missing master_name.")
+		if not layout_name:
+			errors.append(f"Row {index}: missing layout_name.")
+		if layout_pairs and master_name and layout_name:
+			pair = (normalize_name(master_name), normalize_name(layout_name))
+			if pair not in layout_pairs:
+				errors.append(f"Row {index}: master/layout not found in template.")
+
+		if strict and source_pptx and is_positive_int(slide_index) and slide_hash:
+			resolved_path = resolve_source_path(source_pptx, csv_dir)
+			if not os.path.exists(resolved_path):
+				continue
+			source_presentation = source_cache.get(resolved_path)
+			if not source_presentation:
+				if resolved_path.lower().endswith(".odp"):
+					temp_dir = tempfile.TemporaryDirectory()
+					temp_dirs.append(temp_dir)
+					converted = soffice_tools.convert_odp_to_pptx(resolved_path, temp_dir.name)
+					source_presentation = pptx_module.Presentation(converted)
+				else:
+					source_presentation = pptx_module.Presentation(resolved_path)
+				source_cache[resolved_path] = source_presentation
+			slide_number = int(slide_index)
+			if slide_number < 1 or slide_number > len(source_presentation.slides):
 				errors.append(
-					f"Row {index}: image_locators and image_hashes length mismatch."
+					f"Row {index}: source_slide_index out of range for {source_pptx}."
 				)
-		if image_locators and not image_hashes:
-			warnings.append(f"Row {index}: image_locators present without image_hashes.")
-		if image_hashes and not image_locators:
-			warnings.append(f"Row {index}: image_hashes present without image_locators.")
+				continue
+			source_slide = source_presentation.slides[slide_number - 1]
+			slide_text = pptx_text_module.extract_slide_text(source_slide)
+			notes_text = pptx_text_module.extract_notes_text(source_slide)
+			computed_hash = csv_schema.compute_slide_hash(slide_text, notes_text)
+			if computed_hash != slide_hash:
+				errors.append(f"Row {index}: slide_hash mismatch.")
 
-		if image_locators:
-			for locator in image_locators:
-				parsed = csv_schema.parse_image_locator(locator)
-				if not parsed:
-					errors.append(f"Row {index}: invalid image_locator {locator}.")
-					continue
-				locator_source = parsed.get("source", "")
-				if not sources_match(locator_source, source_pptx):
-					errors.append(f"Row {index}: image_locator source mismatch.")
-				locator_slide = parsed.get("slide", "")
-				if locator_slide != slide_index_value:
-					errors.append(f"Row {index}: image_locator slide mismatch.")
-				shape_id = parsed.get("shape_id", "")
-				if not shape_id or not shape_id.isdigit():
-					errors.append(f"Row {index}: image_locator shape_id invalid.")
-
-		if strict:
-			title_text = normalize_row_value(row, "title_text")
-			body_text = normalize_row_value(row, "body_text")
-			notes_text = normalize_row_value(row, "notes_text")
-			expected_text_hash = csv_schema.compute_text_hash(
-				title_text,
-				body_text,
-				notes_text,
-			)
-			expected_fingerprint = csv_schema.compute_slide_fingerprint(
-				title_text,
-				body_text,
-				notes_text,
-				image_hashes,
-			)
-			text_hash = normalize_row_value(row, "text_hash")
-			if text_hash != expected_text_hash:
-				errors.append(f"Row {index}: text_hash mismatch.")
-			slide_fingerprint = normalize_row_value(row, "slide_fingerprint")
-			if slide_fingerprint != expected_fingerprint:
-				errors.append(f"Row {index}: slide_fingerprint mismatch.")
-		else:
-			text_hash = normalize_row_value(row, "text_hash")
-			if not text_hash:
-				warnings.append(f"Row {index}: text_hash is missing.")
-			slide_fingerprint = normalize_row_value(row, "slide_fingerprint")
-			if not slide_fingerprint:
-				warnings.append(f"Row {index}: slide_fingerprint is missing.")
+	for temp_dir in temp_dirs:
+		temp_dir.cleanup()
 	return (errors, warnings)
 
 
@@ -283,6 +327,7 @@ def main() -> None:
 		csv_dir,
 		args.check_sources,
 		args.strict,
+		args.template_path,
 	)
 	if warnings:
 		for line in format_messages("WARN", warnings):

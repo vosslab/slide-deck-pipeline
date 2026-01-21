@@ -2,8 +2,6 @@
 
 import argparse
 import os
-import shutil
-import subprocess
 import tempfile
 
 # PIP3 modules
@@ -12,6 +10,8 @@ import pptx.enum.shapes
 
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
+import slide_deck_pipeline.pptx_text as pptx_text
+import slide_deck_pipeline.soffice_tools as soffice_tools
 
 
 #============================================
@@ -41,40 +41,6 @@ def parse_args() -> argparse.Namespace:
 
 
 #============================================
-def convert_odp_to_pptx(odp_path: str, work_dir: str) -> str:
-	"""
-	Convert an ODP file to PPTX using soffice.
-
-	Args:
-		odp_path: Path to the ODP file.
-		work_dir: Output directory for the converted PPTX.
-
-	Returns:
-		str: Path to the converted PPTX file.
-	"""
-	soffice_bin = shutil.which("soffice")
-	if not soffice_bin:
-		raise FileNotFoundError("soffice not found. Install LibreOffice to convert ODP.")
-	command = [
-		soffice_bin,
-		"--headless",
-		"--convert-to",
-		"pptx",
-		"--outdir",
-		work_dir,
-		odp_path,
-	]
-	result = subprocess.run(command, capture_output=True, text=True, cwd=work_dir)
-	if result.returncode != 0:
-		message = result.stderr.strip() or result.stdout.strip()
-		raise RuntimeError(f"ODP conversion failed: {message}")
-	base_name = os.path.splitext(os.path.basename(odp_path))[0]
-	pptx_path = os.path.join(work_dir, f"{base_name}.pptx")
-	if not os.path.exists(pptx_path):
-		raise FileNotFoundError(f"Converted PPTX not found: {pptx_path}")
-	return pptx_path
-
-
 #============================================
 def resolve_input_pptx(input_path: str, temp_dir: str | None) -> tuple[str, str]:
 	"""
@@ -94,7 +60,7 @@ def resolve_input_pptx(input_path: str, temp_dir: str | None) -> tuple[str, str]
 	if lowered.endswith(".odp"):
 		if not temp_dir:
 			raise ValueError("Temporary directory required for ODP conversion.")
-		pptx_path = convert_odp_to_pptx(input_path, temp_dir)
+		pptx_path = soffice_tools.convert_odp_to_pptx(input_path, temp_dir)
 		return (pptx_path, source_name)
 	raise ValueError("Input must be a .pptx or .odp file.")
 
@@ -110,84 +76,7 @@ def extract_paragraph_lines(text_frame: pptx.text.text.TextFrame) -> list[str]:
 	Returns:
 		list[str]: Lines with leading tab indentation.
 	"""
-	lines = []
-	for paragraph in text_frame.paragraphs:
-		text = paragraph.text.strip()
-		if not text:
-			continue
-		indent = "\t" * paragraph.level
-		lines.append(f"{indent}{text}")
-	return lines
-
-
-#============================================
-def extract_table_text(table: pptx.table.Table) -> list[str]:
-	"""
-	Extract text from a table.
-
-	Args:
-		table: Table instance.
-
-	Returns:
-		list[str]: Table cell lines.
-	"""
-	lines = []
-	for row in table.rows:
-		for cell in row.cells:
-			if not cell.text_frame:
-				continue
-			lines.extend(extract_paragraph_lines(cell.text_frame))
-	return lines
-
-
-#============================================
-def extract_chart_title_text(chart) -> list[str]:
-	"""
-	Extract chart title text when available.
-
-	Args:
-		chart: Chart instance.
-
-	Returns:
-		list[str]: Chart title lines.
-	"""
-	if not chart:
-		return []
-	if not getattr(chart, "has_title", False):
-		return []
-	chart_title = getattr(chart, "chart_title", None)
-	if not chart_title or not getattr(chart_title, "text_frame", None):
-		return []
-	return extract_paragraph_lines(chart_title.text_frame)
-
-
-#============================================
-def extract_shape_text(shape) -> list[str]:
-	"""
-	Extract text from a shape, including tables and chart titles.
-
-	Args:
-		shape: Shape instance.
-
-	Returns:
-		list[str]: Text lines.
-	"""
-	lines = []
-	if (
-		getattr(shape, "shape_type", None)
-		== pptx.enum.shapes.MSO_SHAPE_TYPE.GROUP
-		and hasattr(shape, "shapes")
-	):
-		for nested in shape.shapes:
-			lines.extend(extract_shape_text(nested))
-		return lines
-	if getattr(shape, "has_text_frame", False):
-		lines.extend(extract_paragraph_lines(shape.text_frame))
-	if getattr(shape, "has_table", False):
-		lines.extend(extract_table_text(shape.table))
-	if getattr(shape, "has_chart", False):
-		lines.extend(extract_chart_title_text(shape.chart))
-	return lines
+	return pptx_text.extract_paragraph_lines(text_frame)
 
 
 #============================================
@@ -201,13 +90,7 @@ def extract_body_text(slide: pptx.slide.Slide) -> str:
 	Returns:
 		str: Body text with newline separators.
 	"""
-	lines = []
-	title_shape = slide.shapes.title
-	for shape in slide.shapes:
-		if title_shape and shape == title_shape:
-			continue
-		lines.extend(extract_shape_text(shape))
-	return "\n".join(lines)
+	return pptx_text.extract_body_text(slide)
 
 
 #============================================
@@ -221,12 +104,7 @@ def extract_notes_text(slide: pptx.slide.Slide) -> str:
 	Returns:
 		str: Notes text.
 	"""
-	if not slide.has_notes_slide:
-		return ""
-	notes_frame = slide.notes_slide.notes_text_frame
-	if not notes_frame:
-		return ""
-	return notes_frame.text or ""
+	return pptx_text.extract_notes_text(slide)
 
 
 #============================================
@@ -240,10 +118,153 @@ def extract_slide_text(slide: pptx.slide.Slide) -> str:
 	Returns:
 		str: Slide text.
 	"""
-	lines = []
+	return pptx_text.extract_slide_text(slide)
+
+
+#============================================
+def collect_asset_types(slide: pptx.slide.Slide) -> str:
+	"""
+	Summarize slide asset types for context.
+
+	Args:
+		slide: Slide instance.
+
+	Returns:
+		str: Asset type summary string.
+	"""
+	media_type = getattr(pptx.enum.shapes.MSO_SHAPE_TYPE, "MEDIA", None)
+	counts = {
+		"images": 0,
+		"tables": 0,
+		"charts": 0,
+		"media": 0,
+	}
+
+	def scan_shape(shape) -> None:
+		if (
+			getattr(shape, "shape_type", None)
+			== pptx.enum.shapes.MSO_SHAPE_TYPE.GROUP
+			and hasattr(shape, "shapes")
+		):
+			for nested in shape.shapes:
+				scan_shape(nested)
+			return
+		if getattr(shape, "shape_type", None) == pptx.enum.shapes.MSO_SHAPE_TYPE.PICTURE:
+			counts["images"] += 1
+		if getattr(shape, "has_table", False):
+			counts["tables"] += 1
+		if getattr(shape, "has_chart", False):
+			counts["charts"] += 1
+		if media_type and getattr(shape, "shape_type", None) == media_type:
+			counts["media"] += 1
+
 	for shape in slide.shapes:
-		lines.extend(extract_shape_text(shape))
-	return "\n".join(lines)
+		scan_shape(shape)
+
+	labels = []
+	if counts["images"] == 1:
+		labels.append("image")
+	elif counts["images"] > 1:
+		labels.append(f"images_{counts['images']}")
+	if counts["tables"]:
+		labels.append("table")
+	if counts["charts"]:
+		labels.append("chart")
+	if counts["media"]:
+		labels.append("media")
+	return "|".join(labels)
+
+
+#============================================
+def describe_shape_type(shape) -> str:
+	"""
+	Return a readable shape type name.
+
+	Args:
+		shape: Shape instance.
+
+	Returns:
+		str: Shape type name.
+	"""
+	shape_type = getattr(shape, "shape_type", None)
+	if shape_type is None:
+		return "unknown"
+	return getattr(shape_type, "name", str(shape_type))
+
+
+#============================================
+def is_supported_shape(shape) -> bool:
+	"""
+	Check whether a shape is supported for indexing.
+
+	Args:
+		shape: Shape instance.
+
+	Returns:
+		bool: True if supported.
+	"""
+	if getattr(shape, "is_placeholder", False):
+		return True
+	if getattr(shape, "shape_type", None) == pptx.enum.shapes.MSO_SHAPE_TYPE.PICTURE:
+		return True
+	if getattr(shape, "has_text_frame", False):
+		return True
+	if getattr(shape, "has_table", False):
+		return True
+	if getattr(shape, "has_chart", False):
+		return True
+	return False
+
+
+#============================================
+def collect_unsupported_shapes(slide: pptx.slide.Slide) -> list[str]:
+	"""
+	Collect unsupported shape types from a slide.
+
+	Args:
+		slide: Slide instance.
+
+	Returns:
+		list[str]: Shape type names.
+	"""
+	unsupported = []
+	for shape in slide.shapes:
+		if (
+			getattr(shape, "shape_type", None)
+			== pptx.enum.shapes.MSO_SHAPE_TYPE.GROUP
+			and hasattr(shape, "shapes")
+		):
+			for nested in shape.shapes:
+				if not is_supported_shape(nested):
+					unsupported.append(describe_shape_type(nested))
+			continue
+		if not is_supported_shape(shape):
+			unsupported.append(describe_shape_type(shape))
+	return unsupported
+
+
+#============================================
+def report_index_warnings(
+	missing_text_slides: list[int],
+	unsupported_shapes: dict[int, list[str]],
+) -> None:
+	"""
+	Print a simple indexing warning report.
+
+	Args:
+		missing_text_slides: Slide indices missing all text.
+		unsupported_shapes: Slide indices with unsupported shapes.
+	"""
+	if not missing_text_slides and not unsupported_shapes:
+		return
+	print("Index warnings:")
+	if missing_text_slides:
+		listed = ", ".join(str(idx) for idx in missing_text_slides)
+		print(f"- Slides with no text: {listed}")
+	if unsupported_shapes:
+		for slide_index, shapes in sorted(unsupported_shapes.items()):
+			joined = ", ".join(shapes)
+			print(f"- Slide {slide_index} unsupported shapes: {joined}")
 
 
 #============================================
@@ -256,6 +277,7 @@ def build_slide_row(
 	slide_text: str,
 	master_name: str,
 	layout_name: str,
+	asset_types: str,
 ) -> dict[str, str]:
 	"""
 	Build a CSV row for a slide.
@@ -268,17 +290,19 @@ def build_slide_row(
 		notes_text: Notes text.
 		master_name: Template master name.
 		layout_name: Template layout name.
+		asset_types: Asset type summary.
 
 	Returns:
 		dict[str, str]: CSV row.
 	"""
-	slide_hash = csv_schema.compute_slide_hash(source_name, slide_index, slide_text)
+	slide_hash = csv_schema.compute_slide_hash(slide_text, notes_text)
 	return {
 		"source_pptx": source_name,
 		"source_slide_index": str(slide_index),
 		"slide_hash": slide_hash,
 		"master_name": master_name,
 		"layout_name": layout_name,
+		"asset_types": asset_types,
 		"title_text": title_text,
 		"body_text": body_text,
 		"notes_text": notes_text,
@@ -322,6 +346,8 @@ def index_rows(
 	"""
 	presentation = pptx.Presentation(pptx_path)
 	rows = []
+	missing_text_slides = []
+	unsupported_shapes = {}
 	for index, slide in enumerate(presentation.slides, 1):
 		title_text = ""
 		if slide.shapes.title and slide.shapes.title.text_frame:
@@ -329,7 +355,17 @@ def index_rows(
 		body_text = extract_body_text(slide)
 		notes_text = extract_notes_text(slide)
 		slide_text = extract_slide_text(slide)
-		layout_name = slide.slide_layout.name
+		asset_types = collect_asset_types(slide)
+		layout_name = slide.slide_layout.name or "custom"
+		master_name = "custom"
+		slide_master = getattr(slide.slide_layout, "slide_master", None)
+		if slide_master and getattr(slide_master, "name", ""):
+			master_name = slide_master.name
+		unsupported = collect_unsupported_shapes(slide)
+		if unsupported:
+			unsupported_shapes[index] = unsupported
+		if not title_text and not body_text and not notes_text:
+			missing_text_slides.append(index)
 		row = build_slide_row(
 			source_name,
 			index,
@@ -337,10 +373,12 @@ def index_rows(
 			body_text,
 			notes_text,
 			slide_text,
-			"",
+			master_name,
 			layout_name,
+			asset_types,
 		)
 		rows.append(row)
+	report_index_warnings(missing_text_slides, unsupported_shapes)
 	return rows
 
 

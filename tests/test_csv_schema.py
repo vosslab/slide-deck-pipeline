@@ -14,51 +14,27 @@ def test_normalize_text_preserves_tabs() -> None:
 
 
 #============================================
-def test_list_field_roundtrip() -> None:
+def test_slide_hash_consistent() -> None:
 	"""
-	Split and join list fields consistently.
+	Ensure slide hash is stable and sensitive to changes.
 	"""
-	items = ["a.png", "b.png", "c.png"]
-	joined = csv_schema.join_list_field(items)
-	assert joined == "a.png|b.png|c.png"
-	assert csv_schema.split_list_field(joined) == items
-	assert csv_schema.split_list_field("") == []
-
-
-#============================================
-def test_hashes_consistent() -> None:
-	"""
-	Ensure text hash is stable and sensitive to changes.
-	"""
-	first = csv_schema.compute_text_hash("Title", "Body", "Notes")
-	second = csv_schema.compute_text_hash("Title", "Body", "Notes")
-	third = csv_schema.compute_text_hash("Title", "Body changed", "Notes")
+	first = csv_schema.compute_slide_hash("Title\nBody", "Notes")
+	second = csv_schema.compute_slide_hash("Title\nBody", "Notes")
+	third = csv_schema.compute_slide_hash("Title\nBody changed", "Notes")
 	assert first == second
 	assert first != third
 
 
 #============================================
-def test_slide_uid_changes_with_images() -> None:
+def test_text_hash_consistent() -> None:
 	"""
-	Ensure slide UID changes when images change.
+	Ensure text hash is stable and sensitive to changes.
 	"""
-	uid_a = csv_schema.compute_slide_uid(
-		"deck.pptx",
-		1,
-		"Title",
-		"Body",
-		"",
-		["hash1", "hash2"],
-	)
-	uid_b = csv_schema.compute_slide_uid(
-		"deck.pptx",
-		1,
-		"Title",
-		"Body",
-		"",
-		["hash1", "hash3"],
-	)
-	assert uid_a != uid_b
+	first = csv_schema.compute_text_hash("Title\nBody")
+	second = csv_schema.compute_text_hash("Title\nBody")
+	third = csv_schema.compute_text_hash("Title\nBody changed")
+	assert first == second
+	assert first != third
 
 
 #============================================
@@ -78,16 +54,3 @@ def test_validate_headers_error() -> None:
 	headers.append("extra")
 	with pytest.raises(ValueError):
 		csv_schema.validate_headers(headers)
-
-
-#============================================
-def test_image_locator_roundtrip() -> None:
-	"""
-	Build and parse image locator strings.
-	"""
-	locator = csv_schema.build_image_locator("deck.pptx", 12, 5)
-	parsed = csv_schema.parse_image_locator(locator)
-	assert parsed is not None
-	assert parsed["source"] == "deck.pptx"
-	assert parsed["slide"] == "12"
-	assert parsed["shape_id"] == "5"

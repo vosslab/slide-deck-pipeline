@@ -110,6 +110,10 @@ def normalize_slide_xml(
 	Returns:
 		bytes: Normalized XML signature bytes.
 	"""
+	if not slide_xml:
+		return slide_xml
+	if not slide_xml.lstrip().startswith(b"<"):
+		return slide_xml
 	try:
 		root = xml_et.fromstring(slide_xml, parser=XML_PARSER)
 	except xml_et.XMLSyntaxError:

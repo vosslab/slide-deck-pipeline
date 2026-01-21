@@ -68,7 +68,8 @@
   rejected.
 
 ## Slide hash definition
-- Compute full SHA-256 over normalized slide content.
+- Compute full SHA-256 over a structural signature (ordered shape tokens and
+  notes text). Exclude volatile ids and slide numbers.
 - Store the first 16 hex characters (64 bits) as the hash string.
 - Hashes are integrity locks for drift detection, not security features.
 

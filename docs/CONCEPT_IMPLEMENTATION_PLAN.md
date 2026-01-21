@@ -15,13 +15,14 @@
 - Define a slide record with stable keys: source_pptx, source_slide_index,
   slide_hash, master_name, layout_type, asset_types, title_text,
   body_text, notes_text.
-- Generate slide_hash from a stable CRC32 of source_pptx + slide_index +
-- normalized slide text.
+- Generate slide_hash from a structural signature of the slide: ordered shape
+  tokens (kind, placeholder role, geometry, text hash, image hash) plus
+  normalized notes text.
 - Keep binary image data out of the CSV; resolve images from source slides.
 - Keep the CSV as the ordering and selection surface; avoid design authority in
   CSV fields. asset_types/title_text/body_text/notes_text are context only and
   are not editable in the CSV. Use YAML for text edit patches.
-- Normalize text for hashing (whitespace, bullet markers, case rules).
+- Normalize text for hashing (whitespace and indentation rules).
 
 ### CSV column reference
 - `source_pptx`: source PPTX or ODP basename.
@@ -86,7 +87,8 @@
   rejected.
 
 ## Slide hash definition
-- Compute full SHA-256 over normalized slide content.
+- Compute full SHA-256 over a structural signature (ordered shape tokens and
+  notes text). Exclude volatile ids and slide numbers.
 - Store the first 16 hex characters (64 bits) as the hash string.
 - Hashes are integrity locks for drift detection, not security features.
 

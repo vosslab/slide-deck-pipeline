@@ -30,14 +30,14 @@ def parse_args() -> argparse.Namespace:
 		"--input",
 		dest="input_path",
 		required=True,
-		help="Input PPTX or ODP file",
+		help="Input PPTX/ODP file (or patch file when -p is omitted)",
 	)
 	parser.add_argument(
 		"-p",
 		"--patches",
 		dest="patch_path",
-		required=True,
-		help="YAML patch file",
+		default="",
+		help="YAML patch file (optional when -i is a patch file)",
 	)
 	parser.add_argument(
 		"-o",
@@ -45,6 +45,12 @@ def parse_args() -> argparse.Namespace:
 		dest="output_path",
 		default="",
 		help="Output PPTX or ODP path (default: <input>_edited.pptx)",
+	)
+	parser.add_argument(
+		"--inplace",
+		dest="inplace",
+		help="Allow writing edits to the input file",
+		action="store_true",
 	)
 	parser.add_argument(
 		"-f",
@@ -101,17 +107,31 @@ def main() -> None:
 	Main entry point.
 	"""
 	args = parse_args()
+	patch_path = args.patch_path
+	input_path = args.input_path
+	if not patch_path:
+		extension = os.path.splitext(input_path)[1].lower()
+		if extension in (".yaml", ".yml"):
+			patch_path = input_path
+			input_path = ""
+		else:
+			raise ValueError("Missing -p/--patches for a non-YAML input.")
 	output_path = args.output_path
 	if not output_path:
-		base_name = os.path.splitext(args.input_path)[0]
-		output_path = f"{base_name}_edited.pptx"
+		if input_path:
+			base_name = os.path.splitext(input_path)[0]
+			output_path = f"{base_name}_edited.pptx"
+		else:
+			base_name = os.path.splitext(patch_path)[0]
+			output_path = f"{base_name}_edited.pptx"
 	apply_text_edits(
-		args.input_path,
-		args.patch_path,
+		input_path or None,
+		patch_path,
 		output_path,
 		args.force,
 		args.include_subtitle,
 		args.include_footer,
+		args.inplace,
 	)
 
 

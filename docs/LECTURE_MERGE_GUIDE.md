@@ -60,6 +60,13 @@ Notes:
 When you combine multiple CSV files, remove repeated headers and then sort the
 rows by a column that aligns with your lecture flow.
 
+Optional: use the merge helper to handle globs and sorting in one step.
+
+```bash
+/opt/homebrew/opt/python@3.12/bin/python3.12 merge_index_csv_files.py \
+  -i *.csv --sort-by source_slide_index -o merged.csv
+```
+
 Minimal merge example:
 
 ```bash

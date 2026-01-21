@@ -70,10 +70,18 @@ Notes:
   -o lecture_edited.pptx
 ```
 
+If the patch file `source_pptx` matches a local file, you can also run:
+
+```bash
+/opt/homebrew/opt/python@3.12/bin/python3.12 apply_text_edits.py \
+  -i lecture_text_edits.yaml
+```
+
 Optional flags:
 - `-f`, `--force` to apply edits even if text hashes mismatch.
 - `-s`, `--include-subtitle` and `-r`, `--include-footer` to match boxes that
   were exported with those flags.
+- `--inplace` to allow writing edits to the input file.
 
 ## Step 4: Review the summary
 `apply_text_edits.py` prints counts for updated blocks, skipped locked blocks,

@@ -8,6 +8,7 @@ import yaml
 
 # local repo modules
 import slide_deck_pipeline.csv_schema as csv_schema
+import slide_deck_pipeline.path_resolver as path_resolver
 import slide_deck_pipeline.pptx_hash as pptx_hash
 import slide_deck_pipeline.pptx_io as pptx_io
 import slide_deck_pipeline.pptx_text as pptx_text
@@ -133,23 +134,25 @@ def set_shape_text(shape, text_value: str) -> None:
 
 #============================================
 def apply_text_edits(
-	input_path: str,
+	input_path: str | None,
 	patch_path: str,
 	output_path: str,
 	force: bool,
 	include_subtitle: bool,
 	include_footer: bool,
+	inplace: bool,
 ) -> None:
 	"""
 	Apply text edits to a deck.
 
 	Args:
-		input_path: Input PPTX or ODP path.
+		input_path: Input PPTX or ODP path (optional when patch includes source_pptx).
 		patch_path: YAML patch file.
 		output_path: Output PPTX or ODP path.
 		force: Apply edits even if text hashes mismatch.
 		include_subtitle: Include subtitle placeholders in matching.
 		include_footer: Include footer placeholders in matching.
+		inplace: Allow writing to the input path.
 	"""
 	with open(patch_path, "r", encoding="utf-8") as handle:
 		payload = yaml.safe_load(handle)
@@ -166,9 +169,26 @@ def apply_text_edits(
 	if not isinstance(patches, list):
 		raise ValueError("Patch file must contain a patches list.")
 	source_name = str(payload.get("source_pptx", "")).strip()
+	if not input_path:
+		if not source_name:
+			raise ValueError("Patch file missing source_pptx; pass --input.")
+		patch_dir = os.path.dirname(os.path.abspath(patch_path))
+		resolved_path, warnings = path_resolver.resolve_path(
+			source_name,
+			input_dir=patch_dir,
+			strict=False,
+		)
+		for warning in warnings:
+			print(f"WARN: {warning}")
+		input_path = resolved_path
 	input_base = os.path.basename(input_path)
 	if source_name and source_name != input_base:
 		print("WARN: patch source_pptx does not match input file basename.")
+	if not inplace:
+		input_abs = os.path.abspath(input_path)
+		output_abs = os.path.abspath(output_path)
+		if input_abs == output_abs:
+			raise ValueError("Output path matches input; use --inplace to override.")
 
 	needs_conversion = input_path.lower().endswith(".odp")
 	if needs_conversion:

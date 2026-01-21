@@ -23,6 +23,10 @@ Defaults: `input.pptx` -> `input.csv`, `merged.csv` -> `merged.pptx`.
 - Index script: [index_slide_deck.py](index_slide_deck.py)
   - `-i`, `--input`: input PPTX or ODP path.
   - `-o`, `--output`: output CSV path (defaults to `<input>.csv`).
+- Merge script: [merge_index_csv_files.py](merge_index_csv_files.py)
+  - `-i`, `--input`: input CSV paths or glob patterns.
+  - `-o`, `--output`: output CSV path (default: `merged.csv`).
+  - `--sort-by`: optional CSV column to sort by.
 - Rebuild script: [rebuild_slides.py](rebuild_slides.py)
   - `-i`, `--input`: merged CSV path.
   - `-o`, `--output`: output PPTX or ODP path (defaults to `<input_csv>.pptx`).
@@ -44,6 +48,7 @@ Defaults: `input.pptx` -> `input.csv`, `merged.csv` -> `merged.pptx`.
   - `-i`, `--input`: input PPTX or ODP path.
   - `-p`, `--patches`: YAML patch file.
   - `-o`, `--output`: output PPTX or ODP path (defaults to `<input>_edited.pptx`).
+  - `--inplace`: allow writing edits to the input file.
   - `-f`, `--force`: apply edits even if text hashes mismatch.
   - `-s`, `--include-subtitle`: include subtitle placeholders in matching.
   - `-r`, `--include-footer`: include footer placeholders in matching.
@@ -51,6 +56,10 @@ Defaults: `input.pptx` -> `input.csv`, `merged.csv` -> `merged.pptx`.
 ## Examples
 ```bash
 python3 index_slide_deck.py -i deck.odp
+```
+
+```bash
+python3 merge_index_csv_files.py -i *.csv --sort-by source_slide_index -o merged.csv
 ```
 
 ```bash
@@ -67,6 +76,10 @@ python3 export_slide_text.py -i merged.pptx -n
 
 ```bash
 python3 apply_text_edits.py -i merged.pptx -p merged_text_edits.yaml
+```
+
+```bash
+python3 apply_text_edits.py -i merged_text_edits.yaml
 ```
 
 ## Inputs and outputs

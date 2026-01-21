@@ -140,3 +140,9 @@
 - Added a text-to-slides pipeline guide for Markdown and YAML rendering.
 - Added a multiple-choice slides pipeline guide for quiz text decks.
 - Refocused README on the four pipelines with guide and plan links.
+- Added merge_index_csv_files.py to merge index CSVs with glob support and sorting.
+- Documented the merge helper in usage and lecture merge guide.
+- Refreshed code architecture and file structure docs for new pipeline scripts.
+- Treat object/content/text placeholders as body text boxes in export/apply.
+- Allowed apply_text_edits.py to infer input decks from YAML patches.
+- Defaulted apply_text_edits.py to prevent in-place edits without --inplace.

@@ -11,6 +11,26 @@ import slide_deck_pipeline.pptx_text as pptx_text
 
 
 #============================================
+def is_body_placeholder(placeholder_type) -> bool:
+	"""
+	Return True for placeholder types that act like body content.
+
+	Args:
+		placeholder_type: Placeholder type enum.
+
+	Returns:
+		bool: True if treated as body content.
+	"""
+	placeholders = pptx.enum.shapes.PP_PLACEHOLDER
+	body_types = [placeholders.BODY]
+	for attr_name in ("OBJECT", "CONTENT", "TEXT"):
+		candidate = getattr(placeholders, attr_name, None)
+		if candidate is not None:
+			body_types.append(candidate)
+	return placeholder_type in tuple(body_types)
+
+
+#============================================
 def normalize_shape_name(name: str) -> str:
 	"""
 	Normalize a shape name for stable IDs.
@@ -126,7 +146,7 @@ def collect_text_boxes(
 		elif placeholder_type == pptx.enum.shapes.PP_PLACEHOLDER.SUBTITLE:
 			if include_subtitle:
 				box_id = "subtitle"
-		elif placeholder_type == pptx.enum.shapes.PP_PLACEHOLDER.BODY:
+		elif is_body_placeholder(placeholder_type):
 			body_count += 1
 			box_id = f"body_{body_count}"
 		elif placeholder_type == pptx.enum.shapes.PP_PLACEHOLDER.FOOTER:

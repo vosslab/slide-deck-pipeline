@@ -1,49 +1,54 @@
 # Text to slides plan
 
 ## Purpose
-- Generate a slide deck from instructor-authored text using a template deck and
-  a small, well-defined set of supported slide types.
+- Generate a slide deck from instructor-authored text, optionally using a
+  template deck, with a small, well-defined set of supported layout types.
 - Keep authoring simple, predictable, and safe for non-programmers.
 
 ## Goals
 - Keep instructor authoring simple and predictable.
-- Use a template deck as the canonical source of slide size, masters, and
-  layouts.
-- Keep supported slide types small (3 to 6) and deterministic.
+- Use library defaults by default. Optionally use a template deck for theme,
+  slide size, masters, and layouts.
+- Keep supported layout types small (3 to 6) and deterministic.
 - Keep the CLI scripts thin. Put worker logic in slide_deck_pipeline/.
 
 ## Non-goals
-- Do not infer free-form layouts beyond the supported slide types.
+- Do not infer free-form layouts beyond the supported layout types.
 - Do not modify images or other non-text assets.
 - Do not edit charts, SmartArt, embedded objects, or equations.
+- Do not attempt to control master slide content. Use deck defaults (library
+  default or template deck). Instructors can change masters and styling after
+  PPTX creation.
 
 ## Terms
 - Template deck: the master PPTX used as the canonical source of slide size,
   masters, and layouts for output.
-- Slide type: a semantic label like title or content that maps to one template
+- layout_type: a semantic label like title or content that maps to one template
   layout.
+- layout_type is the same semantic class used in the CSV merge pipeline.
 - Spec: the canonical YAML representation of the deck content and slide order.
 
 ## Inputs and outputs
 Inputs:
-- Template deck (PPTX).
 - Canonical YAML spec file.
+- Template deck (PPTX, optional).
 
 Outputs:
-- PPTX slide deck generated from the template deck.
+- PPTX slide deck generated from library defaults or a template deck.
 
 ## High-level pipeline
 Authoring path:
 1. Instructor writes constrained Markdown.
 2. `md_to_slides_yaml.py` converts Markdown to a canonical YAML spec.
 3. Instructor optionally edits the YAML spec (advanced use).
-4. `text_to_slides.py` renders PPTX from the YAML spec and template deck.
+4. `text_to_slides.py` renders PPTX from the YAML spec and optional template
+   deck.
 
 Rendering path (text_to_slides):
 1. Load YAML spec.
-2. Validate schema and slide types.
-3. Validate template deck contract.
-4. Render slides by selecting template layouts and filling placeholders.
+2. Validate schema and layout types.
+3. Resolve layouts from defaults or a template deck.
+4. Render slides by selecting layouts and filling placeholders.
 5. Emit a short summary and warnings.
 
 ## Canonical YAML spec format
@@ -51,18 +56,18 @@ YAML schema (v1):
 
 ```yaml
 version: 1
-template_deck: lecture_template.pptx
+template_deck: lecture_template.pptx   # optional
 
 defaults:
-  master_name: light
-  slide_type: content
+  layout_type: content
+  master_name: light                   # optional, only with template_deck
 
 slides:
-  - type: title
+  - layout_type: title
     title: Abiotic Factors
     subtitle: What shapes where organisms can live?
 
-  - type: content
+  - layout_type: content
     title: Abiotic factors
     bullets:
       - Temperature
@@ -72,22 +77,54 @@ slides:
       - Sunlight
       - Soil
 
-  - type: section
+  - layout_type: section
     title: Practice
     subtitle: Today: examples and a short activity
 
-  - type: blank
+  - layout_type: blank
 ```
 
 Rules:
 - `version` is required.
 - `slides` is required and ordered.
-- Each slide must include `type`.
+- Each slide must include `layout_type`.
 - `bullets` is a flat list of strings in v1 (no nesting).
 - `template_deck` may be provided in YAML or via CLI flag. The CLI flag
   overrides YAML.
+- If `template_deck` is absent, ignore `master_name`.
 
-## Supported slide types (v1)
+## Supported layout types (v1)
+Allowed `layout_type` values (snake_case), matching the 12 built-in Impress
+layouts shown in the screenshot:
+- blank
+- title_slide
+- title_content
+- title_2_content
+- title_only
+- centered_text
+- title_2_content_and_content
+- title_content_and_2_content
+- title_2_content_over_content
+- title_content_over_content
+- title_4_content
+- title_6_content
+
+Aliases (accepted input, normalized to the canonical values above):
+- blank_slide -> blank
+- title -> title_slide
+- title_slide -> title_slide
+- title_content -> title_content
+- title_and_content -> title_content
+- title_2_content -> title_2_content
+- title_and_2_content -> title_2_content
+- title_only -> title_only
+- centered_text -> centered_text
+- title_2_content_and_content -> title_2_content_and_content
+- title_content_and_2_content -> title_content_and_2_content
+- title_2_content_over_content -> title_2_content_over_content
+- title_content_over_content -> title_content_over_content
+- title_4_content -> title_4_content
+- title_6_content -> title_6_content
 
 ### title
 Required:
@@ -129,7 +166,9 @@ Behavior:
 - Create a blank slide using the blank layout.
 
 ## Template contract
-The template deck must provide the layouts needed by the supported slide types.
+Applies only when `template_deck` is provided.
+
+The template deck must provide the layouts needed by the supported layout types.
 
 Minimum required layouts:
 - title
@@ -144,13 +183,14 @@ Placeholder requirements:
 - blank: no placeholders required.
 
 Layout mapping strategy:
-- A mapping table in code resolves:
-  - (master_name, slide_type) -> template layout name
+- If `template_deck` is absent, use default library layouts (no master_name).
+- If `template_deck` is present, a mapping table resolves:
+  - (master_name, layout_type) -> template layout name
 - `master_name` defaults from YAML `defaults.master_name` unless overridden by
   CLI.
 - If a requested layout is missing in the template deck:
   - strict mode: error
-  - default mode: warn and fall back to the default master and slide type
+  - default mode: warn and fall back to the default master and layout_type
     mapping if possible; otherwise error
 
 ## Text handling
@@ -172,9 +212,9 @@ Overflow policy:
 ## Validation
 Spec validation:
 - YAML schema version matches supported versions.
-- Slide types are supported.
+- layout_type values are supported.
 - Field types are correct (title and subtitle strings, bullets list of strings).
-- Required fields exist per slide type.
+- Required fields exist per layout_type.
 
 Template validation:
 - Template deck loads successfully.
@@ -217,7 +257,7 @@ Markdown constraints:
   - `- ` lines are bullets.
 
 Converter rules:
-- Unknown slide type labels are errors.
+- Unknown layout_type labels are errors.
 - Multiple titles or subtitles in one slide are errors.
 - Non-bullet paragraphs in content slides are errors in v1.
 
@@ -228,6 +268,8 @@ Entry scripts (thin orchestrators):
 - `md_to_slides_yaml.py`: parse args, call parser, write YAML.
 
 Worker modules (all logic in slide_deck_pipeline/):
+- `slide_deck_pipeline/default_layouts.py`
+  - resolve built-in layout_type to library default layouts
 - `slide_deck_pipeline/spec_schema.py`
   - load YAML
   - validate schema
@@ -238,7 +280,7 @@ Worker modules (all logic in slide_deck_pipeline/):
 - `slide_deck_pipeline/template.py`
   - load template deck
   - list masters and layouts
-  - resolve (master_name, slide_type) -> layout
+  - resolve (master_name, layout_type) -> layout
   - locate placeholders
 - `slide_deck_pipeline/text_to_slides.py`
   - render spec to PPTX using template utilities

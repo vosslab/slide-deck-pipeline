@@ -101,6 +101,11 @@
   a deck-level layout confidence summary during indexing.
 - Added a lecture merge guide covering CSV-driven sorting and rebuild steps.
 - Added docs/TEXT_TO_SLIDES_PLAN.md describing the text-to-slides pipeline plan.
+- Aligned text-to-slides terminology to use layout_type in YAML and mapping.
+- Clarified text-to-slides template deck modes and optional master usage.
+- Documented the allowed layout_type values for text-to-slides.
+- Expanded text-to-slides layout_type support to the full 12 Impress layouts
+  with snake_case names and alias normalization.
 - Reworked slide hashing to use ordered shape tokens, geometry, text hashes, and
   image blobs plus notes text for stable structural hashes.
 - Added slide hash tests that cover shape order changes and picture changes.

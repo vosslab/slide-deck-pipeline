@@ -1,14 +1,16 @@
-# slide-deck-pipeline
+# Slide deck pipeline
 
 Index PPTX or ODP slide decks to CSV, merge rows externally, and rebuild a
 themed PPTX or ODP from a template for workflows that consolidate multiple
-decks.
+decks. The repo also includes scripts for text edits and text-to-slides
+generation.
 
 ## Documentation
 - [docs/INSTALL.md](docs/INSTALL.md): setup requirements and dependencies.
 - [docs/USAGE.md](docs/USAGE.md): CLI usage and examples.
 - [docs/CONCEPT_IMPLEMENTATION_PLAN.md](docs/CONCEPT_IMPLEMENTATION_PLAN.md):
   pipeline plan and constraints.
+- [docs/MC_TO_SLIDES.md](docs/MC_TO_SLIDES.md): multiple-choice quiz slide plan.
 - [docs/CODE_ARCHITECTURE.md](docs/CODE_ARCHITECTURE.md): components and data flow.
 - [docs/FILE_STRUCTURE.md](docs/FILE_STRUCTURE.md): repo layout and where to add work.
 - [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md): known issues and fixes.

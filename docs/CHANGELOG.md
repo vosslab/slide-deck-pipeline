@@ -125,3 +125,14 @@
 - Added mc_to_slides CLI and tests for MC parsing, templates, and rendering.
 - Escaped non-ASCII bullet glyphs in the MC template source XML.
 - Marked mc_to_slides.py as executable to match the shebang policy.
+- Centralized PPTX/ODP input resolution in slide_deck_pipeline/pptx_io.py.
+- Reused the shared PPTX resolver in index, export, and apply scripts.
+- Named MC template shapes directly in the unzipped slide XML.
+- Updated README docs links to include the MC plan and clarify scope.
+- Added slide_deck_pipeline/text_normalization.py for shared whitespace parsing.
+- Reused shared text normalization helpers in MC, rebuild, and text edit flows.
+- Centralized CSV source path resolution in slide_deck_pipeline/path_resolver.py.
+- Moved index, rebuild, export, and apply helpers into slide_deck_pipeline modules.
+- Added shared text editing, text export, rebuild, and indexing helper modules.
+- Added a shared CSV validation module and thin CLI wrapper.
+- Reduced root CLI scripts to thin entrypoints that call library code.

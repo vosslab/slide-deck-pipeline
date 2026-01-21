@@ -1,7 +1,6 @@
 # Standard Library
 import copy
 import os
-import re
 import shutil
 import tempfile
 import zipfile
@@ -11,6 +10,7 @@ import lxml.etree as etree
 
 # local repo modules
 import slide_deck_pipeline.mc_template as mc_template
+import slide_deck_pipeline.text_normalization as text_normalization
 
 
 CONTENT_TYPES_NS = "http://schemas.openxmlformats.org/package/2006/content-types"
@@ -151,8 +151,11 @@ def format_prompt_lines(
 	"""
 	lines = list(question.get("prompt_lines", []))
 	if preserve_newlines:
-		return normalize_lines(lines, preserve_newlines=True)
-	combined = normalize_whitespace(" ".join(lines))
+		return text_normalization.normalize_lines(
+			lines,
+			preserve_newlines=True,
+		)
+	combined = text_normalization.normalize_whitespace(" ".join(lines))
 	return [combined] if combined else []
 
 
@@ -171,7 +174,9 @@ def format_option_lines(question: dict[str, object]) -> list[str]:
 	style = question.get("style", "")
 	for option in question.get("options", []):
 		label = str(option.get("label", "")).upper()
-		text = normalize_whitespace(str(option.get("text", "")))
+		text = text_normalization.normalize_whitespace(
+			str(option.get("text", ""))
+		)
 		if style == "checkbox":
 			lines.append(f"[ ] {text}".strip())
 		else:
@@ -204,49 +209,13 @@ def format_answer_lines(
 	answer_line = f"{prefix}: {', '.join(correct_labels)}"
 	lines = [answer_line]
 	feedback_lines = list(question.get("feedback_lines", []))
-	lines.extend(normalize_lines(feedback_lines, preserve_newlines))
+	lines.extend(
+		text_normalization.normalize_lines(
+			feedback_lines,
+			preserve_newlines,
+		)
+	)
 	return [line for line in lines if line]
-
-
-#============================================
-def normalize_lines(lines: list[str], preserve_newlines: bool) -> list[str]:
-	"""
-	Normalize a list of lines.
-
-	Args:
-		lines: Input lines.
-		preserve_newlines: Keep line boundaries.
-
-	Returns:
-		list[str]: Normalized lines.
-	"""
-	cleaned = []
-	for line in lines:
-		if preserve_newlines:
-			text = normalize_whitespace(line)
-		else:
-			text = normalize_whitespace(line)
-		if text:
-			cleaned.append(text)
-	return cleaned
-
-
-#============================================
-def normalize_whitespace(value: str) -> str:
-	"""
-	Normalize whitespace for rendering.
-
-	Args:
-		value: Input string.
-
-	Returns:
-		str: Normalized string.
-	"""
-	if not value:
-		return ""
-	text = value.replace("\t", " ").replace("\r", "\n")
-	text = re.sub(r"\s+", " ", text)
-	return text.strip()
 
 
 #============================================

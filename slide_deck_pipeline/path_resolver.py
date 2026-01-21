@@ -99,3 +99,27 @@ def resolve_path(
 		)
 		return (matches[0], warnings)
 	raise FileNotFoundError(f"Path not found: {target_path}")
+
+
+#============================================
+def resolve_source_path(
+	source_path: str,
+	input_dir: str | None,
+	strict: bool,
+) -> tuple[str, list[str]]:
+	"""
+	Resolve a source path using the shared search order.
+
+	Args:
+		source_path: Source path to resolve.
+		input_dir: Directory to use as a fallback root.
+		strict: Treat ambiguous matches as errors.
+
+	Returns:
+		tuple[str, list[str]]: Resolved path and warnings.
+	"""
+	return resolve_path(
+		source_path,
+		input_dir=input_dir,
+		strict=strict,
+	)

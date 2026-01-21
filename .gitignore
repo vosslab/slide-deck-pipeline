@@ -3,6 +3,7 @@
 *.csv
 *.yml
 *.yaml
+*.txt
 
 report_shebang.txt
 report_pyflakes.txt

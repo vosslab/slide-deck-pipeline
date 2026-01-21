@@ -6,6 +6,10 @@
 - [slide_deck_pipeline/](slide_deck_pipeline/): shared modules used by CLI scripts.
 - [slide_deck_pipeline/csv_schema.py](slide_deck_pipeline/csv_schema.py): CSV
   schema and hashing utilities.
+- [slide_deck_pipeline/layout_classifier.py](slide_deck_pipeline/layout_classifier.py):
+  semantic layout classification helpers.
+- [slide_deck_pipeline/pptx_hash.py](slide_deck_pipeline/pptx_hash.py): slide
+  hashing helpers including relationship normalization.
 - [slide_deck_pipeline/pptx_text.py](slide_deck_pipeline/pptx_text.py): slide
   text extraction helpers.
 - [slide_deck_pipeline/text_boxes.py](slide_deck_pipeline/text_boxes.py): text
@@ -15,7 +19,10 @@
 - [validate_csv.py](validate_csv.py): validate merged CSVs and source references.
 - [export_slide_text.py](export_slide_text.py): export text edit patches.
 - [apply_text_edits.py](apply_text_edits.py): apply text edit patches.
+- [Brewfile](Brewfile): Homebrew dependency manifest.
 - [docs/](docs/): repository documentation.
+- [pip_requirements.txt](pip_requirements.txt): Python runtime dependencies.
+- [pip_requirements-dev.txt](pip_requirements-dev.txt): Python dev/test dependencies.
 - [tests/](tests/): repo hygiene checks and unit tests.
 - [devel/](devel/): developer helper scripts.
 - [LICENSE](LICENSE): license terms.

@@ -10,6 +10,7 @@ CSV_COLUMNS = [
 	"slide_hash",
 	"master_name",
 	"layout_name",
+	"layout_type",
 	"asset_types",
 	"title_text",
 	"body_text",
@@ -242,14 +243,22 @@ def read_slide_csv(path: str) -> list[dict[str, str]]:
 	if not os.path.exists(path):
 		raise FileNotFoundError(f"CSV file not found: {path}")
 	with open(path, "r", encoding="utf-8", newline="") as handle:
-		reader = csv.DictReader(handle)
-		headers = reader.fieldnames or []
-		validate_headers(headers)
+		reader = csv.reader(handle)
 		rows = []
 		for row in reader:
-			if is_header_row(row):
+			if not row:
 				continue
-			rows.append(row)
+			normalized = [field.strip() for field in row]
+			if all(not field for field in normalized):
+				continue
+			if normalized == CSV_COLUMNS:
+				continue
+			if len(row) != len(CSV_COLUMNS):
+				raise ValueError(
+					"CSV row does not match expected schema. "
+					f"Expected {CSV_COLUMNS}, got {row}."
+				)
+			rows.append(dict(zip(CSV_COLUMNS, row)))
 		return rows
 
 

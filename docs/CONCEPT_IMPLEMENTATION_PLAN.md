@@ -13,8 +13,8 @@
 
 ## Data model and identifiers
 - Define a slide record with stable keys: source_pptx, source_slide_index,
-  slide_hash, master_name, layout_name, asset_types, title_text, body_text,
-  notes_text.
+  slide_hash, master_name, layout_name, layout_type, asset_types, title_text,
+  body_text, notes_text.
 - Generate slide_hash from a stable CRC32 of source_pptx + slide_index +
 - normalized slide text.
 - Keep binary image data out of the CSV; resolve images from source slides.
@@ -29,6 +29,7 @@
 - `slide_hash`: content fingerprint for the slide.
 - `master_name`: editable target template master name.
 - `layout_name`: editable target template layout name.
+- `layout_type`: computed semantic layout type (context only).
 - `asset_types`: context only; not editable in the CSV.
 - `title_text`: context only; not editable in the CSV.
 - `body_text`: context only; not editable in the CSV.

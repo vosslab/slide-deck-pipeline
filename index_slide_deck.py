@@ -9,10 +9,11 @@ import pptx
 import pptx.enum.shapes
 
 # local repo modules
-import slide_deck_pipeline.csv_schema as csv_schema
 import slide_deck_pipeline.pptx_hash as pptx_hash
 import slide_deck_pipeline.pptx_text as pptx_text
+import slide_deck_pipeline.csv_schema as csv_schema
 import slide_deck_pipeline.soffice_tools as soffice_tools
+import slide_deck_pipeline.layout_classifier as layout_classifier
 
 
 #============================================
@@ -287,6 +288,7 @@ def build_slide_row(
 	slide_hash: str,
 	master_name: str,
 	layout_name: str,
+	layout_type: str,
 	asset_types: str,
 ) -> dict[str, str]:
 	"""
@@ -301,6 +303,7 @@ def build_slide_row(
 	slide_hash: Slide hash.
 	master_name: Template master name.
 	layout_name: Template layout name.
+	layout_type: Computed semantic layout type.
 	asset_types: Asset type summary.
 
 	Returns:
@@ -312,6 +315,7 @@ def build_slide_row(
 		"slide_hash": slide_hash,
 		"master_name": master_name,
 		"layout_name": layout_name,
+		"layout_type": layout_type,
 		"asset_types": asset_types,
 		"title_text": title_text,
 		"body_text": body_text,
@@ -355,6 +359,8 @@ def index_rows(
 		list[dict[str, str]]: CSV rows.
 	"""
 	presentation = pptx.Presentation(pptx_path)
+	slide_width = int(getattr(presentation, "slide_width", 0) or 0)
+	slide_height = int(getattr(presentation, "slide_height", 0) or 0)
 	rows = []
 	unsupported_shapes = {}
 	layout_errors = {}
@@ -369,6 +375,13 @@ def index_rows(
 		)
 		body_text = extract_body_text(slide)
 		asset_types = collect_asset_types(slide)
+		layout_type = layout_classifier.classify_layout_type(
+			slide,
+			slide_width,
+			slide_height,
+			title_text,
+			body_text,
+		)
 		master_name, layout_name, layout_warning = resolve_layout_names(slide)
 		if layout_warning:
 			layout_errors[index] = layout_warning
@@ -384,6 +397,7 @@ def index_rows(
 			slide_hash,
 			master_name,
 			layout_name,
+			layout_type,
 			asset_types,
 		)
 		rows.append(row)

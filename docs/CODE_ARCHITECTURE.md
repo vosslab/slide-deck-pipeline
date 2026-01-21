@@ -9,6 +9,8 @@
 - The CSV schema and hashing utilities live in
   [slide_deck_pipeline/csv_schema.py](slide_deck_pipeline/csv_schema.py) to keep
   indexing and rebuild in sync.
+- Layout classification utilities live in
+  [slide_deck_pipeline/layout_classifier.py](slide_deck_pipeline/layout_classifier.py).
 
 ## Major components
 - [index_slide_deck.py](index_slide_deck.py) indexes PPTX or ODP (via conversion)
@@ -17,6 +19,10 @@
   the CSV schema and stable hashes used by both pipeline ends.
 - [slide_deck_pipeline/pptx_text.py](slide_deck_pipeline/pptx_text.py) extracts
   normalized slide text for hashing and text edits.
+- [slide_deck_pipeline/pptx_hash.py](slide_deck_pipeline/pptx_hash.py) computes
+  slide hashes using normalized slide XML and relationships.
+- [slide_deck_pipeline/layout_classifier.py](slide_deck_pipeline/layout_classifier.py)
+  classifies slides into semantic layout types.
 - [slide_deck_pipeline/text_boxes.py](slide_deck_pipeline/text_boxes.py) maps
   slides to stable text box identifiers for export and apply.
 - [rebuild_slides.py](rebuild_slides.py) rebuilds a PPTX from a merged CSV and
@@ -60,6 +66,5 @@
   [index_slide_deck.py](index_slide_deck.py).
 
 ## Known gaps
-- Verify the required Python dependencies and document them in a manifest.
 - Confirm the expected CSV merge rules and align the validator with them.
 - Confirm the preferred template PPTX and layout naming conventions.

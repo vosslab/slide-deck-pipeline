@@ -74,9 +74,45 @@ def test_read_slide_csv_skips_header_rows(tmp_path: pathlib.Path) -> None:
 	headers = ",".join(csv_schema.CSV_COLUMNS)
 	lines = [
 		headers,
-		"deck.pptx,1,deadbeefdeadbeef,Master,Layout,,Title,Body,Notes",
+		"deck.pptx,1,deadbeefdeadbeef,Master,Layout,title_content,,Title,Body,Notes",
 		headers,
-		"deck.pptx,2,feedfacefeedface,Master,Layout,,Title2,Body2,Notes2",
+		"deck.pptx,2,feedfacefeedface,Master,Layout,title_content,,Title2,Body2,Notes2",
+	]
+	csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+	rows = csv_schema.read_slide_csv(str(csv_path))
+	assert len(rows) == 2
+	assert rows[0]["source_slide_index"] == "1"
+	assert rows[1]["source_slide_index"] == "2"
+
+
+#============================================
+def test_read_slide_csv_without_header(tmp_path: pathlib.Path) -> None:
+	"""
+	Read CSV files that omit headers.
+	"""
+	csv_path = tmp_path / "no_header.csv"
+	lines = [
+		"deck.pptx,1,deadbeefdeadbeef,Master,Layout,title_content,,Title,Body,Notes",
+		"deck.pptx,2,feedfacefeedface,Master,Layout,title_content,,Title2,Body2,Notes2",
+	]
+	csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+	rows = csv_schema.read_slide_csv(str(csv_path))
+	assert len(rows) == 2
+	assert rows[0]["source_slide_index"] == "1"
+	assert rows[1]["source_slide_index"] == "2"
+
+
+#============================================
+def test_read_slide_csv_header_in_middle(tmp_path: pathlib.Path) -> None:
+	"""
+	Ignore header rows even when they appear mid-file.
+	"""
+	csv_path = tmp_path / "mid_header.csv"
+	headers = ",".join(csv_schema.CSV_COLUMNS)
+	lines = [
+		"deck.pptx,1,deadbeefdeadbeef,Master,Layout,title_content,,Title,Body,Notes",
+		headers,
+		"deck.pptx,2,feedfacefeedface,Master,Layout,title_content,,Title2,Body2,Notes2",
 	]
 	csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 	rows = csv_schema.read_slide_csv(str(csv_path))

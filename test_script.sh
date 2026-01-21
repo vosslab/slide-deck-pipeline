@@ -26,16 +26,17 @@ if [ "${#csvs[@]}" -eq 0 ]; then
 	exit 1
 fi
 
-echo "Merging CSVs into merged.csv"
-rm -f merged.csv
+echo "Saving header.csv"
+rm -f header.csv merged.csv merged_body.csv
 header="$(head -n 1 "${csvs[0]}")"
+echo "$header" > header.csv
+echo "Merging CSVs into merged_body.csv"
 echo "Sorting by column $SORT_COLUMN"
 {
-	echo "$header"
 	for csv_path in "${csvs[@]}"; do
 		tail -n +2 "$csv_path"
 	done | grep -v "^[[:space:]]*$" | sort -t, -k"${SORT_COLUMN},${SORT_COLUMN}"
-} > merged.csv
+} > merged_body.csv
 
 master_col="$(printf '%s\n' "$header" | awk -F, '{for (i=1;i<=NF;i++) if ($i=="master_name") {print i; exit}}')"
 if [ -z "$master_col" ]; then
@@ -50,7 +51,6 @@ else
 	echo "Normalizing master_name to ${master_name}."
 fi
 awk -F, -v OFS="," -v col="$master_col" -v master="$master_name" '
-	NR==1 { print; next }
 	{
 		if (master == "") {
 			master = $col
@@ -58,9 +58,13 @@ awk -F, -v OFS="," -v col="$master_col" -v master="$master_name" '
 		$col = master
 		print
 	}
-' merged.csv > merged.csv.tmp
+' merged_body.csv > merged_body.csv.tmp
 
-cat merged.csv.tmp | grep -v 'image,,,' > merged.csv
+grep 'Abiotic factors affecting the distribution of organisms' merged_body.csv.tmp > merged_body.csv
+rm -f merged_body.csv.tmp
+
+echo "Prepending header.csv to merged.csv"
+cat header.csv merged_body.csv > merged.csv
 
 echo "Rebuilding super.pptx from merged.csv"
 "$PYTHON" rebuild_slides.py -i merged.csv -o super.pptx

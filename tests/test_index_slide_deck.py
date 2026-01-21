@@ -169,12 +169,14 @@ def test_build_slide_row() -> None:
 		csv_schema.compute_slide_hash(b"<slide>Title</slide>", "Notes"),
 		"Master",
 		"Layout",
+		"title_content",
 		"image",
 	)
 	assert row["source_pptx"] == "deck.pptx"
 	assert row["source_slide_index"] == "2"
 	assert row["master_name"] == "Master"
 	assert row["layout_name"] == "Layout"
+	assert row["layout_type"] == "title_content"
 	assert row["asset_types"] == "image"
 	expected_hash = csv_schema.compute_slide_hash(b"<slide>Title</slide>", "Notes")
 	assert row["slide_hash"] == expected_hash

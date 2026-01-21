@@ -8,6 +8,7 @@ def build_row(
 	source_slide_index: str = "1",
 	master_name: str = "Master",
 	layout_name: str = "Layout",
+	layout_type: str = "title_content",
 	asset_types: str = "image",
 ) -> dict[str, str]:
 	"""
@@ -19,6 +20,7 @@ def build_row(
 		"slide_hash": slide_hash,
 		"master_name": master_name,
 		"layout_name": layout_name,
+		"layout_type": layout_type,
 		"asset_types": asset_types,
 		"title_text": "Title",
 		"body_text": "Body",

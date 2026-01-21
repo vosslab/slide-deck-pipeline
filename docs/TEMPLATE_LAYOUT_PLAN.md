@@ -29,6 +29,7 @@
 - The CSV is only a slide ordering and selection surface.
 - Layouts are sourced from the template deck at rebuild time.
 - The CSV provides editable `master_name` and `layout_name` per row.
+- The CSV provides computed `layout_type` for semantic grouping.
 - Layout geometry comes from template placeholders (source of truth).
 
 ## Typography rules
@@ -54,6 +55,7 @@
 - `slide_hash`: content fingerprint for the slide.
 - `master_name`: editable target template master name.
 - `layout_name`: editable target template layout name.
+- `layout_type`: computed semantic layout type (context only).
 - `asset_types`: context only; not editable in the CSV.
 - `title_text`: context only; not editable in the CSV.
 - `body_text`: context only; not editable in the CSV.

@@ -87,3 +87,8 @@
 - Added Brewfile and pip_requirements.txt dependency manifests.
 - Updated docs/INSTALL.md with dependency manifest instructions.
 - Added pip_requirements-dev.txt for test tooling dependencies.
+- Added headerless CSV support and tests for it.
+- Updated test_script.sh to use header.csv for easier sorting and filtering.
+- Allowed header rows anywhere in CSV inputs and ignore them during parsing.
+- Normalized relationship payloads with XML normalization and added tests.
+- Added layout_type column and layout classifier helper module.

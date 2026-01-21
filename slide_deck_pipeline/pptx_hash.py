@@ -59,7 +59,8 @@ def relationship_payload(rel) -> bytes:
 		return target_ref.encode("utf-8")
 	target_part = getattr(rel, "target_part", None)
 	if target_part is not None and hasattr(target_part, "blob"):
-		return bytes(target_part.blob)
+		raw = bytes(target_part.blob)
+		return csv_schema.normalize_slide_xml(raw)
 	target_ref = str(getattr(rel, "target_ref", ""))
 	return target_ref.encode("utf-8")
 

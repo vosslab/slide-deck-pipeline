@@ -1,8 +1,13 @@
 # Changelog
 
 ## 2026-01-22
+- Added fix_layout.py to analyze and fix slide layouts by rearranging text based on sensible rules (title length limits, title vs body size comparison).
+- Added slide_deck_pipeline/layout_fixer.py module for layout analysis and fixing.
+- Added clear_direct_formatting.py to clear direct formatting from all text boxes in PPTX or ODP files.
+- Added slide_deck_pipeline/format_clearer.py module for clearing direct formatting (font name, size, bold, italic, underline).
 - Added shrink_text_on_overflow.py to enable "Shrink text on overflow" for all text boxes in PPTX or ODP files.
 - Added slide_deck_pipeline/text_overflow_fixer.py module for text overflow fixing.
+- Fixed --inplace flag handling in aspect_fixer.py, shrink_text_on_overflow.py, and clear_direct_formatting.py to correctly modify files in place.
 - **BEST PIPELINE (Version 3):** Completed Chapter 44 (Intro to Ecology) using fully refined pipeline with pre-normalization, adjacency smoothing, and LLM reordering in BIOL202/
 - Added pre-normalization step (Step 4) to set consistent master_name and layout_type before categorization using set_master_name_in_csv.py tool
 - Implemented adjacency-aware categorization with smoothing in split_and_order_deck.py - if slide M goes to section N, slides M±1 likely also go to section N

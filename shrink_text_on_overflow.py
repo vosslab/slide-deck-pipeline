@@ -47,10 +47,13 @@ def main() -> None:
 	args = parse_args()
 	output_path = args.output_path
 	if not output_path:
-		base_name, extension = os.path.splitext(args.input_path)
-		if extension.lower() not in (".pptx", ".odp"):
-			extension = ".pptx"
-		output_path = f"{base_name}_shrink_text{extension}"
+		if args.inplace:
+			output_path = args.input_path
+		else:
+			base_name, extension = os.path.splitext(args.input_path)
+			if extension.lower() not in (".pptx", ".odp"):
+				extension = ".pptx"
+			output_path = f"{base_name}_shrink_text{extension}"
 	total, adjusted = text_overflow_fixer.fix_text_overflow(
 		args.input_path,
 		output_path,

@@ -4,7 +4,7 @@ import argparse
 import os
 
 # local repo modules
-import slide_deck_pipeline.aspect_fixer as aspect_fixer
+import slide_deck_pipeline.format_clearer as format_clearer
 
 
 #============================================
@@ -13,7 +13,7 @@ def parse_args() -> argparse.Namespace:
 	Parse command-line arguments.
 	"""
 	parser = argparse.ArgumentParser(
-		description="Fix picture aspect ratios in a PPTX or ODP file."
+		description="Clear direct formatting from all text boxes in a PPTX or ODP file."
 	)
 	parser.add_argument(
 		"-i",
@@ -27,7 +27,7 @@ def parse_args() -> argparse.Namespace:
 		"--output",
 		dest="output_path",
 		default="",
-		help="Output PPTX or ODP path (default: <input>_aspect_fixed.pptx)",
+		help="Output PPTX or ODP path (default: <input>_format_cleared.pptx)",
 	)
 	parser.add_argument(
 		"--inplace",
@@ -53,14 +53,14 @@ def main() -> None:
 			base_name, extension = os.path.splitext(args.input_path)
 			if extension.lower() not in (".pptx", ".odp"):
 				extension = ".pptx"
-			output_path = f"{base_name}_aspect_fixed{extension}"
-	total, adjusted = aspect_fixer.fix_aspect(
+			output_path = f"{base_name}_format_cleared{extension}"
+	total, cleared = format_clearer.clear_direct_formatting(
 		args.input_path,
 		output_path,
 		args.inplace,
 	)
-	print(f"Pictures inspected: {total}")
-	print(f"Pictures adjusted: {adjusted}")
+	print(f"Text runs inspected: {total}")
+	print(f"Text runs cleared: {cleared}")
 	print(f"Wrote output: {output_path}")
 
 

@@ -52,6 +52,15 @@ Defaults: `input.pptx` -> `input.csv`, `merged.csv` -> `merged.pptx`.
   - `-i`, `--input`: input PPTX or ODP path.
   - `-o`, `--output`: output PPTX or ODP path (defaults to `<input>_shrink_text.pptx`).
   - `--inplace`: allow writing to the input file.
+- Clear direct formatting script: [clear_direct_formatting.py](clear_direct_formatting.py)
+  - `-i`, `--input`: input PPTX or ODP path.
+  - `-o`, `--output`: output PPTX or ODP path (defaults to `<input>_format_cleared.pptx`).
+  - `--inplace`: allow writing to the input file.
+- Fix layout script: [fix_layout.py](fix_layout.py)
+  - `-i`, `--input`: input PPTX or ODP path.
+  - `-o`, `--output`: output PPTX or ODP path (defaults to `<input>_layout_fixed.pptx`).
+  - `--inplace`: allow writing to the input file.
+  - `-v`, `--verbose`: show analysis for all slides, not just changed ones.
 - Apply text script: [apply_text_edits.py](apply_text_edits.py)
   - `-i`, `--input`: YAML patch file.
   - `-o`, `--output`: output PPTX or ODP path (defaults to `<patch>_edited.pptx`).
@@ -91,6 +100,18 @@ python3 aspect_fixer.py -i merged.pptx -o merged_aspect_fixed.pptx
 
 ```bash
 python3 shrink_text_on_overflow.py -i merged.pptx -o merged_shrink_text.pptx
+```
+
+```bash
+python3 clear_direct_formatting.py -i merged.pptx -o merged_format_cleared.pptx
+```
+
+```bash
+python3 fix_layout.py -i merged.pptx -o merged_layout_fixed.pptx
+```
+
+```bash
+python3 fix_layout.py -v -i merged.pptx -o merged_layout_fixed.pptx
 ```
 
 ## Inputs and outputs

@@ -1,7 +1,5 @@
 import random
 
-import pytest
-
 import remove_duplicate_slides_from_csv as remove_duplicate
 import set_master_name_in_csv as set_master
 

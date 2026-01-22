@@ -48,6 +48,10 @@ Defaults: `input.pptx` -> `input.csv`, `merged.csv` -> `merged.pptx`.
   - `-i`, `--input`: input PPTX or ODP path.
   - `-o`, `--output`: output PPTX or ODP path.
   - `--inplace`: allow writing to the input file.
+- Shrink text on overflow script: [shrink_text_on_overflow.py](shrink_text_on_overflow.py)
+  - `-i`, `--input`: input PPTX or ODP path.
+  - `-o`, `--output`: output PPTX or ODP path (defaults to `<input>_shrink_text.pptx`).
+  - `--inplace`: allow writing to the input file.
 - Apply text script: [apply_text_edits.py](apply_text_edits.py)
   - `-i`, `--input`: YAML patch file.
   - `-o`, `--output`: output PPTX or ODP path (defaults to `<patch>_edited.pptx`).
@@ -83,6 +87,10 @@ python3 apply_text_edits.py -i merged_text_edits.yaml
 
 ```bash
 python3 aspect_fixer.py -i merged.pptx -o merged_aspect_fixed.pptx
+```
+
+```bash
+python3 shrink_text_on_overflow.py -i merged.pptx -o merged_shrink_text.pptx
 ```
 
 ## Inputs and outputs

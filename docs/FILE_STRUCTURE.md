@@ -26,6 +26,8 @@
   quiz slide rendering helpers.
 - [slide_deck_pipeline/aspect_fixer.py](slide_deck_pipeline/aspect_fixer.py):
   picture aspect ratio fixer helpers.
+- [slide_deck_pipeline/text_overflow_fixer.py](slide_deck_pipeline/text_overflow_fixer.py):
+  text overflow fixer helpers (enable shrink text on overflow).
 - [slide_deck_pipeline/image_utils.py](slide_deck_pipeline/image_utils.py):
   picture sizing and fitting helpers.
 - [index_slide_deck.py](index_slide_deck.py): index slides to CSV.
@@ -35,6 +37,7 @@
 - [export_slide_text.py](export_slide_text.py): export text edit patches.
 - [apply_text_edits.py](apply_text_edits.py): apply text edit patches.
 - [aspect_fixer.py](aspect_fixer.py): fix picture aspect ratios in PPTX or ODP.
+- [shrink_text_on_overflow.py](shrink_text_on_overflow.py): enable shrink text on overflow for all text boxes in PPTX or ODP.
 - [md_to_slides_yaml.py](md_to_slides_yaml.py): convert Markdown to YAML specs.
 - [text_to_slides.py](text_to_slides.py): render PPTX from YAML specs.
 - [mc_to_slides.py](mc_to_slides.py): render quiz decks from text files.

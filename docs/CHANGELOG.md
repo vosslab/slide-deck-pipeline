@@ -1,6 +1,29 @@
 # Changelog
 
 ## 2026-01-22
+- Added shrink_text_on_overflow.py to enable "Shrink text on overflow" for all text boxes in PPTX or ODP files.
+- Added slide_deck_pipeline/text_overflow_fixer.py module for text overflow fixing.
+- **BEST PIPELINE (Version 3):** Completed Chapter 44 (Intro to Ecology) using fully refined pipeline with pre-normalization, adjacency smoothing, and LLM reordering in BIOL202/
+- Added pre-normalization step (Step 4) to set consistent master_name and layout_type before categorization using set_master_name_in_csv.py tool
+- Implemented adjacency-aware categorization with smoothing in split_and_order_deck.py - if slide M goes to section N, slides M±1 likely also go to section N
+- Adjacency smoothing improved categorization from 75% to 98% (87 additional slides categorized, 23% improvement)
+- Added rough merge step (Step 6) using source_slide_index sorting to create starting point for reordering
+- **KEY INNOVATION:** Added LLM reordering step (Step 8) after merge to create logical narrative flow and eliminate circular/repetitive patterns
+- Implemented two-phase title cleaning: (11a) regex-based prefix removal, (11b) smart title generation for text slides
+- Generated 5 final lecture decks for Chapter 44 with 381 slides, 150 cleaned titles, perfect narrative flow
+- Created reusable scripts: split_and_order_deck.py, merge_sections.py, clean_title_prefixes.py, generate_empty_titles.py
+- Documented complete Version 3 pipeline workflow in BIOL202/slide_processing_notes.md with comparison to previous versions
+- **IMPROVED PIPELINE (Version 2):** Completed Chapter 44 (Intro to Ecology) using new two-phase categorization approach in BIOL202/Chap44_new.
+- Created categorize_deck_into_sections.py to process each deck independently into section-specific CSV files (Phase 6a).
+- Created merge_deck_sections.py to merge deck sections into final section files (Phase 6b).
+- Two-phase approach provides better modularity, debuggability, and transparency compared to single-script categorization.
+- Generated 5 final lecture decks for Chapter 44 with 296 slides total and 132 fixed titles.
+- Documented complete improved pipeline workflow in BIOL202/Chap44_new/slide_processing_notes.md with comparison to previous approach.
+- Completed Chapter 45 (Population and Community Ecology) slide processing pipeline for BIOL202.
+- Created build_section_csvs.py script to automatically categorize 626 slides into 7 chapter sections using keyword matching and source file heuristics.
+- Created fix_slide_titles.py script to remove useless titles (Figure/Concept labels) and generate appropriate titles from slide body content across 275 slides.
+- Generated 7 final lecture slide decks (final_section_N_slides.pptx) for OpenStax Chapter 45 with corrected titles and organized content.
+- Documented complete 10-step pipeline workflow in BIOL202/slide_processing_notes.md for reproducibility.
 - Added BIOL202 section slide generation inputs and a BIOL202 runbook documenting the multi-step slide pipeline.
 - Added BIOL202 helper scripts to deduplicate merged CSVs and generate a logically ordered lecture CSV aligned to OpenStax Chapter 44 sections.
 - Added remove_duplicate_slides_from_csv.py to randomly deduplicate slide CSV rows by slide_hash for merged.csv style inputs.

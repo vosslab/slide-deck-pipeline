@@ -69,7 +69,7 @@ def main() -> None:
 		args.inplace,
 		args.verbose,
 	)
-	print(f"\nSummary:")
+	print("\nSummary:")
 	print(f"  Slides inspected: {slides}")
 	print(f"  Title/body swaps: {swaps}")
 	print(f"  Title moves to body: {moves}")

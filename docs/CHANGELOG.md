@@ -5,6 +5,8 @@
 - Updated pyflakes test references in docs to point to tests/test_pyflakes_code_lint.py.
 
 ## 2026-01-22
+- Fixed AttributeError in rebuild.py when removing template slides: changed related_parts.get() to related_part() method call.
+- Fixed unnecessary f-string in fix_layout.py that was missing placeholders.
 - Added fix_layout.py to analyze and fix slide layouts by rearranging text based on sensible rules (title length limits, title vs body size comparison).
 - Added slide_deck_pipeline/layout_fixer.py module for layout analysis and fixing.
 - Added clear_direct_formatting.py to clear direct formatting from all text boxes in PPTX or ODP files.

@@ -48,7 +48,7 @@ def remove_all_slides(presentation: pptx.Presentation) -> None:
 		rel_id = slide_id.get(pptx.oxml.ns.qn("r:id"))
 		if not rel_id:
 			continue
-		slide_part = presentation.part.related_parts.get(rel_id)
+		slide_part = presentation.part.related_part(rel_id)
 		if slide_part is not None:
 			partnames_to_drop.add(str(slide_part.partname))
 		presentation.part.drop_rel(rel_id)

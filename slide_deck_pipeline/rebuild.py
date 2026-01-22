@@ -7,6 +7,7 @@ import tempfile
 # PIP3 modules
 import pptx
 import pptx.enum.shapes
+import pptx.oxml.ns
 import pptx.util
 
 # local repo modules
@@ -31,6 +32,44 @@ def normalize_name(name: str) -> str:
 		str: Normalized name.
 	"""
 	return text_normalization.normalize_simple_name(name)
+
+
+#============================================
+def remove_all_slides(presentation: pptx.Presentation) -> None:
+	"""
+	Remove all slides from a presentation while keeping masters/layouts.
+
+	Args:
+		presentation: Presentation to clear.
+	"""
+	slide_id_list = presentation.slides._sldIdLst
+	partnames_to_drop: set[str] = set()
+	for slide_id in list(slide_id_list):
+		rel_id = slide_id.get(pptx.oxml.ns.qn("r:id"))
+		if not rel_id:
+			continue
+		slide_part = presentation.part.related_parts.get(rel_id)
+		if slide_part is not None:
+			partnames_to_drop.add(str(slide_part.partname))
+		presentation.part.drop_rel(rel_id)
+		slide_id_list.remove(slide_id)
+
+	# Some templates include relationships to slide parts outside the main
+	# slide-id list (for example viewProps or notes slide references). Drop any
+	# remaining relationships to removed slide parts so they are not marshaled.
+	if partnames_to_drop:
+		for part in presentation.part.package.iter_parts():
+			for r_id, rel in list(part.rels.items()):
+				if rel.is_external:
+					continue
+				if str(rel.target_part.partname) in partnames_to_drop:
+					try:
+						part.drop_rel(r_id)
+					except AttributeError:
+						# Some parts don't expose an XML element for ref-count checks.
+						# Deleting the relationship is sufficient to orphan the slide.
+						if r_id in part.rels:
+							del part.rels[r_id]
 
 
 #============================================
@@ -292,7 +331,24 @@ def insert_images(slide: pptx.slide.Slide, image_blobs: list[bytes]) -> None:
 	if len(image_blobs) == 1 and picture_placeholders:
 		stream = io.BytesIO(image_blobs[0])
 		placeholder = picture_placeholders[0]
-		picture = placeholder.insert_picture(stream)
+		if hasattr(placeholder, "insert_picture"):
+			picture = placeholder.insert_picture(stream)
+		else:
+			# Some placeholder types (for example OBJECT/CONTENT) may not expose
+			# insert_picture() in python-pptx; fall back to absolute placement.
+			if not all(
+				hasattr(placeholder, attr)
+				for attr in ("left", "top", "width", "height")
+			):
+				place_images_grid(slide, image_blobs)
+				return
+			picture = slide.shapes.add_picture(
+				stream,
+				placeholder.left,
+				placeholder.top,
+				width=placeholder.width,
+				height=placeholder.height,
+			)
 		if all(
 			hasattr(placeholder, attr)
 			for attr in ("left", "top", "width", "height")
@@ -355,6 +411,7 @@ def rebuild_from_csv(
 		for message in template_warnings:
 			print(f"Warning: {message}")
 		presentation = pptx.Presentation(resolved_template)
+		remove_all_slides(presentation)
 	else:
 		presentation = pptx.Presentation()
 	layout_map = build_layout_map(presentation)

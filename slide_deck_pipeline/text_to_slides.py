@@ -4,6 +4,7 @@ import os
 # PIP3 modules
 import pptx
 import pptx.enum.shapes
+import pptx.oxml.ns
 
 # local repo modules
 import slide_deck_pipeline.default_layouts as default_layouts
@@ -131,10 +132,30 @@ def remove_all_slides(presentation: pptx.Presentation) -> None:
 		presentation: Presentation to clear.
 	"""
 	slide_id_list = presentation.slides._sldIdLst
+	partnames_to_drop: set[str] = set()
 	for slide_id in list(slide_id_list):
-		rel_id = slide_id.get("r:id")
+		rel_id = slide_id.get(pptx.oxml.ns.qn("r:id"))
+		slide_part = presentation.part.related_parts.get(rel_id)
+		if slide_part is not None:
+			partnames_to_drop.add(str(slide_part.partname))
 		presentation.part.drop_rel(rel_id)
 		slide_id_list.remove(slide_id)
+
+	# Some templates include additional relationships to slide parts (for example
+	# viewProps or notes slide references). Drop any remaining relationships so
+	# orphaned slide parts are not marshaled back out.
+	if partnames_to_drop:
+		for part in presentation.part.package.iter_parts():
+			for r_id, rel in list(part.rels.items()):
+				if rel.is_external:
+					continue
+				if str(rel.target_part.partname) not in partnames_to_drop:
+					continue
+				try:
+					part.drop_rel(r_id)
+				except AttributeError:
+					if r_id in part.rels:
+						del part.rels[r_id]
 
 
 #============================================

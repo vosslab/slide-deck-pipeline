@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-01-22
+- Added BIOL202 section slide generation inputs and a BIOL202 runbook documenting the multi-step slide pipeline.
+- Added BIOL202 helper scripts to deduplicate merged CSVs and generate a logically ordered lecture CSV aligned to OpenStax Chapter 44 sections.
+- Added remove_duplicate_slides_from_csv.py to randomly deduplicate slide CSV rows by slide_hash for merged.csv style inputs.
+- Added set_master_name_in_csv.py to overwrite master_name across a merged/index CSV for consistent template/master selection.
+- Added pytest coverage for the CSV helper scripts that set master_name and randomly deduplicate by slide_hash.
+- Fixed rebuild image insertion for placeholders that do not expose insert_picture() in python-pptx by falling back to absolute placement.
+- Fixed rebuild template handling to clear template slides robustly (including dropping template references that can cause duplicate slide XML on save).
+- Updated text-to-slides template slide clearing to drop template references to removed slides.
+- Added a regression test ensuring rebuild with a template does not keep the template's existing slides.
+
 ## 2026-01-20
 - Added the concept implementation plan document.
 - Updated the plan to reflect CSV-only merging and ODP conversion support.

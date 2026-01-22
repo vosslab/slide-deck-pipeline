@@ -72,3 +72,40 @@ def test_pipeline_index_merge_rebuild(tmp_path: pathlib.Path) -> None:
 	assert output_path.exists()
 	merged = pptx.Presentation(str(output_path))
 	assert len(merged.slides) == 2
+
+
+#============================================
+def test_pipeline_rebuild_with_template_clears_template_slides(tmp_path: pathlib.Path) -> None:
+	"""
+	Rebuild with a template deck and confirm the template's existing slides are not kept.
+	"""
+	template_path = tmp_path / "template.pptx"
+	create_pptx(template_path, "Template", ["Do not keep this slide"])
+
+	first_path = tmp_path / "first.pptx"
+	second_path = tmp_path / "second.pptx"
+	create_pptx(first_path, "First", ["Alpha", "Beta"])
+	create_pptx(second_path, "Second", ["Gamma", "Delta"])
+
+	first_csv = tmp_path / "first.csv"
+	second_csv = tmp_path / "second.csv"
+	index_slide_deck.index_slides_to_csv(str(first_path), str(first_csv))
+	index_slide_deck.index_slides_to_csv(str(second_path), str(second_csv))
+
+	rows = []
+	rows.extend(csv_schema.read_slide_csv(str(first_csv)))
+	rows.extend(csv_schema.read_slide_csv(str(second_csv)))
+	rows.sort(key=lambda row: (int(row["source_slide_index"]), row["source_pptx"]))
+
+	merged_csv = tmp_path / "merged.csv"
+	csv_schema.write_slide_csv(str(merged_csv), rows)
+
+	output_path = tmp_path / "merged_with_template.pptx"
+	rebuild_slides.rebuild_from_csv(
+		str(merged_csv),
+		str(output_path),
+		str(template_path),
+	)
+	assert output_path.exists()
+	merged = pptx.Presentation(str(output_path))
+	assert len(merged.slides) == 2

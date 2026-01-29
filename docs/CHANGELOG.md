@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-01-29
+- Added source_me.bash to set PYTHONPATH to the repo root for local tools.
+- Updated pyflakes test references in docs to point to tests/test_pyflakes_code_lint.py.
+
 ## 2026-01-22
 - Added fix_layout.py to analyze and fix slide layouts by rearranging text based on sensible rules (title length limits, title vs body size comparison).
 - Added slide_deck_pipeline/layout_fixer.py module for layout analysis and fixing.

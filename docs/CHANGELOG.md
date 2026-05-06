@@ -1,5 +1,9 @@
 # Changelog
 
+## 2026-05-06
+- Added "Split lectures across multiple decks" subsection to docs/pedagogical_slide_style_guide.md noting that decks are kept small because presentation software stores them as zip archives and rezips on every save.
+- Clarified in docs/pedagogical_slide_style_guide.md that learning objectives and summary slides belong at the start and end of each deck, not just at the start and end of a whole lecture.
+
 ## 2026-01-29
 - Added source_me.bash to set PYTHONPATH to the repo root for local tools.
 - Updated pyflakes test references in docs to point to tests/test_pyflakes_code_lint.py.

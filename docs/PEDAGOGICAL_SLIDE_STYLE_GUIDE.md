@@ -6,8 +6,8 @@ Make students **think, look, and listen**. If the slide asks students to read to
 
 Practical defaults:
 
-- start every deck with learning objectives
-- end every deck with summary slides
+- start every deck with learning objectives (each deck, not just the first deck of a lecture)
+- end every deck with summary slides (each deck, not just the last deck of a lecture)
 - use images, diagrams, graphs, structures, or comparisons as the main teaching tool
 - keep slide text short enough to read at a glance
 - put the spoken explanation in speaker notes, not on the slide
@@ -113,9 +113,15 @@ If a slide has too many ideas, split it into multiple slides.
 
 ## Pedagogical Structure
 
+### Split lectures across multiple decks
+
+A single lecture intentionally spans multiple slide decks. Presentation software (Keynote, PowerPoint) stores each deck as a zip archive, and every save rezips the entire archive. Large decks produce long save lags that interrupt authoring.
+
+Keep individual decks small so saves stay fast. Do not merge decks back together for tidiness; the split is a practical file-format choice, not a pedagogical one.
+
 ### Start with learning objectives
 
-Every slide deck should start with learning objectives. Learning objectives should be specific and student-centered.
+Every slide deck should start with learning objectives, including each deck within a multi-deck lecture, not only the first deck. Learning objectives should be specific and student-centered.
 
 Good objectives use action verbs such as:
 
@@ -264,7 +270,7 @@ Use transitions to help students see why the next topic follows from the previou
 
 ### End with summary and takeaway slides
 
-Every slide deck should end with a summary slide. End each major section with a short takeaway slide, and end the lecture with a final summary slide.
+Every slide deck should end with a summary slide, including each deck within a multi-deck lecture, not only the last deck. End each major section with a short takeaway slide, and end the lecture with a final summary slide.
 
 A takeaway slide should name the **3 to 5 ideas** students should remember.
 
